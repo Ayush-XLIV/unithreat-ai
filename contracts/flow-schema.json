@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Normalized Passive Flow Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "flow_id",
+    "timestamp",
+    "src_ip",
+    "dst_ip",
+    "protocol"
+  ],
+  "properties": {
+    "flow_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "src_ip": {
+      "type": "string"
+    },
+    "dst_ip": {
+      "type": "string"
+    },
+    "src_port": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "dst_port": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "protocol": {
+      "type": "string"
+    },
+    "direction": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "inbound",
+        "outbound",
+        "internal",
+        "unknown",
+        null
+      ]
+    },
+    "duration": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "packet_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "byte_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "tcp_flags": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dns": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "tls": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "quic": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

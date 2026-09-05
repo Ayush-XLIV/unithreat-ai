@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Threat Evidence Signal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "signal_name",
+    "value",
+    "direction",
+    "reliability",
+    "supporting_features"
+  ],
+  "properties": {
+    "signal_name": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "supporting",
+        "contradicting",
+        "neutral"
+      ]
+    },
+    "reliability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "supporting_features": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "threat_class": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
