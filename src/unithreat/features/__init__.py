@@ -20,6 +20,7 @@ Exported
 
 from unithreat.features.extractor import (
     FeatureExtractor,
+    compute_dns_lexical_metrics,
     compute_shannon_entropy,
     extract_features,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "FeatureExtractor",
     "FeatureRecord",
     "FeatureWindowTracker",
+    "compute_dns_lexical_metrics",
     "compute_shannon_entropy",
     "extract_features",
 ]

@@ -44,6 +44,109 @@ def compute_shannon_entropy(text: str | None) -> float:
     return round(-sum((c / length) * math.log2(c / length) for c in counts.values()), 4)
 
 
+_COMMON_ENGLISH_BIGRAMS = frozenset({
+    "th", "he", "in", "er", "an", "re", "ed", "on", "es", "st", "en", "at", "to", "nt", "ha",
+    "nd", "ou", "ea", "ng", "as", "or", "ti", "is", "et", "it", "ar", "te", "se", "hi", "of",
+    "al", "de", "co", "ro", "li", "ra", "le", "sa", "si", "ma", "me", "ta", "ri", "ne", "la",
+    "el", "io", "ca", "lo", "da", "di", "pe", "pa", "na", "no", "om", "mo", "ce", "ic", "ch",
+    "sh", "ck", "ad", "ba", "be", "bo", "bu", "by", "do", "fa", "fe", "fi", "fo", "ga", "ge",
+    "go", "gu", "ho", "id", "il", "im", "ja", "jo", "ju", "ka", "ke", "ki", "ko", "ku", "lu",
+    "ly", "mi", "mu", "my", "nu", "ny", "ob", "oc", "op", "os", "ot", "ov", "ow", "ox", "oy",
+    "pi", "po", "pu", "py", "qu", "ru", "ry", "so", "su", "sy", "tu", "ty", "ub", "ug", "um",
+    "un", "up", "ur", "us", "ut", "va", "ve", "vi", "vo", "wa", "we", "wi", "wo", "ya", "ye",
+    "yo", "za", "ze", "zi", "zo", "zu",
+})
+
+_VOWELS = frozenset({"a", "e", "i", "o", "u"})
+
+
+def compute_dns_lexical_metrics(query: str | None) -> dict[str, float | int | None]:
+    """
+    Compute lexical features on DNS query for DGA and tunneling detection.
+
+    Extracts core domain label and computes:
+      - dns_vowel_ratio: fraction of vowels (a, e, i, o, u) in core label
+      - dns_consonant_ratio: fraction of consonants in core label
+      - dns_max_consonant_run: longest consecutive consonant sequence in core label
+      - dns_ngram_score: ratio of common English bigrams in core label
+      - dns_digit_ratio: fraction of digits in core label
+    """
+    if not query:
+        return {
+            "dns_vowel_ratio": None,
+            "dns_consonant_ratio": None,
+            "dns_max_consonant_run": None,
+            "dns_ngram_score": None,
+            "dns_digit_ratio": None,
+        }
+
+    parts = [p for p in query.strip(".").split(".") if p]
+    if not parts:
+        return {
+            "dns_vowel_ratio": None,
+            "dns_consonant_ratio": None,
+            "dns_max_consonant_run": None,
+            "dns_ngram_score": None,
+            "dns_digit_ratio": None,
+        }
+
+    # Core label: if an unusually long label (>= 25 chars) exists, analyze it
+    # as the candidate data/DGA payload; otherwise use standard SLD (parts[-2])
+    longest_label = max(parts, key=len)
+    if len(longest_label) >= 25:
+        core = longest_label
+    else:
+        core = parts[-2] if len(parts) >= 2 else parts[0]
+    core_clean = core.lower()
+
+    alpha_chars = [c for c in core_clean if c.isalpha()]
+    digits = [c for c in core_clean if c.isdigit()]
+    total_len = len(core_clean)
+    digit_ratio = round(len(digits) / total_len, 4) if total_len > 0 else 0.0
+
+    if not alpha_chars:
+        return {
+            "dns_vowel_ratio": 0.0,
+            "dns_consonant_ratio": 0.0,
+            "dns_max_consonant_run": 0,
+            "dns_ngram_score": 0.0,
+            "dns_digit_ratio": digit_ratio,
+        }
+
+    vowel_count = sum(1 for c in alpha_chars if c in _VOWELS)
+    consonant_count = len(alpha_chars) - vowel_count
+    vowel_ratio = round(vowel_count / len(alpha_chars), 4)
+    consonant_ratio = round(consonant_count / len(alpha_chars), 4)
+
+    # Longest consecutive consonant run
+    max_c_run = 0
+    cur_c_run = 0
+    for c in core_clean:
+        if c.isalpha() and c not in _VOWELS:
+            cur_c_run += 1
+            if cur_c_run > max_c_run:
+                max_c_run = cur_c_run
+        else:
+            cur_c_run = 0
+
+    # Bigram score on alpha characters
+    alpha_str = "".join(alpha_chars)
+    if len(alpha_str) >= 2:
+        bigrams = [alpha_str[i : i + 2] for i in range(len(alpha_str) - 1)]
+        common_count = sum(1 for bg in bigrams if bg in _COMMON_ENGLISH_BIGRAMS)
+        ngram_score = round(common_count / len(bigrams), 4)
+    else:
+        ngram_score = 1.0
+
+    return {
+        "dns_vowel_ratio": vowel_ratio,
+        "dns_consonant_ratio": consonant_ratio,
+        "dns_max_consonant_run": max_c_run,
+        "dns_ngram_score": ngram_score,
+        "dns_digit_ratio": digit_ratio,
+    }
+
+
 class FeatureExtractor:
     """
     Extracts numerical and categorical feature sets from passive flow records.
@@ -148,6 +251,11 @@ class FeatureExtractor:
             "dns_entropy": None,
             "dns_qtype": None,
             "dns_rcode": None,
+            "dns_vowel_ratio": None,
+            "dns_consonant_ratio": None,
+            "dns_max_consonant_run": None,
+            "dns_ngram_score": None,
+            "dns_digit_ratio": None,
             # TLS metadata
             "has_tls": flow_obj.tls is not None,
             "tls_version": None,
@@ -168,6 +276,7 @@ class FeatureExtractor:
                 features["dns_query"] = query
                 features["dns_query_length"] = len(query)
                 features["dns_entropy"] = compute_shannon_entropy(query)
+                features.update(compute_dns_lexical_metrics(query))
 
             qtype = flow_obj.dns.get("qtype")
             if isinstance(qtype, str):
@@ -205,6 +314,8 @@ class FeatureExtractor:
             quic_sni = flow_obj.quic.get("sni")
             if isinstance(quic_sni, str):
                 features["quic_sni"] = quic_sni
+                if not features["is_ip_sni"]:
+                    features["is_ip_sni"] = bool(_IPV4_PATTERN.match(quic_sni))
 
         # Incremental sliding-window aggregation
         if self.window_tracker is not None:
