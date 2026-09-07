@@ -242,6 +242,26 @@ class TestScenarioCharacteristics:
             assert f["duration"] >= 10.0
             assert f["packet_count"] >= 500
 
+    def test_dga_behavioral_pattern(self):
+        flows = list(generate_flows(scenario="dga", count=30, seed=42))
+
+        for f in flows:
+            assert f["protocol"] == "UDP"
+            assert f["dst_port"] == 53
+            assert f["direction"] == "outbound"
+            assert f["dns"] is not None
+            assert f["dns"]["qtype"] in ("A", "AAAA")
+            assert f["dns"]["rcode"] == "NOERROR"
+            assert len(f["dns"]["query"]) >= 15
+
+    def test_encrypted_anomaly_behavioral_pattern(self):
+        flows = list(generate_flows(scenario="encrypted_anomaly", count=40, seed=42))
+
+        for f in flows:
+            assert f["direction"] == "outbound"
+            assert (f["tls"] is not None) or (f["quic"] is not None)
+
+
 
 # ---------------------------------------------------------------------------
 # CLI tests

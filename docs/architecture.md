@@ -388,50 +388,32 @@ evidence cannot support such a conclusion.
 
 # 9. Machine Learning Layer
 
-The initial ML implementation will use practical tabular machine-learning
-models.
+The ML intelligence layer is implemented in `src/unithreat/ml/` as a tabular supervised classifier complementing the statistical and behavioral detection engines.
 
-Preferred starting technologies:
+For comprehensive architectural and methodology details, see [ML Architecture Documentation](ml-architecture.md).
 
-- Python
-- scikit-learn
+### Key Architecture Components:
+- **Baseline Model**: `RandomForestClassifier` (scikit-learn) with `SimpleImputer(strategy="median")`.
+- **Feature Vector**: 37 canonical features extracted from `FeatureRecord.features` adhering strictly to `contracts/feature-schema.json`.
+- **Taxonomy (8 Classes)**: `BENIGN`, `DDOS`, `C2_BEACONING`, `DGA`, `DNS_TUNNELING`, `RECONNAISSANCE`, `DATA_EXFILTRATION`, `ENCRYPTED_ANOMALY`.
+- **Leakage Prevention**: Group/run-aware splitting (`split_dataset_by_group`) ensures entire multi-flow simulation runs are allocated exclusively to train, validation, or test sets.
+- **Contract Strictness**: Single-flow predictions output directly to `contracts/ml-prediction-schema.json` with `calibrated: false` explicitly documented as an uncalibrated confidence index.
+- **Passive Constraints**: Zero active networking, packet transmission, or payload decryption.
 
-Candidate models include:
-
-- Random Forest
-- Gradient Boosting
-- HistGradientBoosting
-- XGBoost if justified
-
-The final model will be selected based on measured validation performance,
-latency, complexity, and reliability.
-
-Deep learning is not a requirement.
-
-The ML pipeline must support:
+The ML pipeline is structured as:
 
 ```text
-Dataset
- ↓
-Feature Extraction
- ↓
-Preprocessing
- ↓
-Training
- ↓
-Validation
- ↓
-Model Serialization
- ↓
-Model Loading
- ↓
-Inference
+Synthetic / Ingested Flow
+  ↓
+FeatureExtractor (37 features)
+  ↓
+MLInferenceEngine (pre-loaded pipeline)
+  ↓
+MLPrediction (contracts/ml-prediction-schema.json)
 ```
 
-Training and inference should be separated from the real-time detection
-pipeline where practical.
+Model artifacts are persisted to disk as `model.joblib` and `metadata.json`.
 
-Model inputs must have a stable and versioned feature definition.
 
 ---
 

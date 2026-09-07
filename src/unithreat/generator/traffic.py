@@ -33,6 +33,8 @@ VALID_SCENARIOS = (
     "c2_beacon",
     "dns_tunnel",
     "exfiltration",
+    "dga",
+    "encrypted_anomaly",
 )
 
 # Base start time for synthetic flows (deterministic reference)
@@ -361,6 +363,173 @@ class TrafficGenerator:
             },
             "quic": None,
         }
+
+    def _generate_dga(self, idx: int) -> dict[str, Any]:
+        delta_sec = self.rng.uniform(0.1, 1.2)
+        self.current_time = datetime.fromtimestamp(
+            self.current_time.timestamp() + delta_sec, tz=timezone.utc
+        )
+
+        src_ip = f"192.168.1.{self.rng.choice([33, 44, 55, 66, 77])}"
+        dst_ip = self.rng.choice(["8.8.8.8", "1.1.1.1", "9.9.9.9"])
+
+        # Varied algorithmic domain generation with high consonant ratio, varied length, and varied TLDs
+        domain_len = self.rng.randint(13, 23)
+        consonants = "bcdfghjklmnpqrstvwxyz"
+        vowels = "aeiou"
+        digits = "0123456789"
+        
+        # Compose core label with high consonant concentration and varied runs
+        core_chars = []
+        for _ in range(domain_len):
+            roll = self.rng.random()
+            if roll < 0.78:
+                core_chars.append(self.rng.choice(consonants))
+            elif roll < 0.90:
+                core_chars.append(self.rng.choice(vowels))
+            else:
+                core_chars.append(self.rng.choice(digits))
+        core_label = "".join(core_chars)
+
+        tld = self.rng.choice(["biz", "info", "net", "org", "cc", "top", "xyz", "club"])
+        qtype = self.rng.choices(["A", "AAAA"], weights=[90, 10])[0]
+        query = f"{core_label}.{tld}"
+
+        return {
+            "flow_id": f"dga-{idx:06d}",
+            "timestamp": _format_timestamp(self.current_time),
+            "src_ip": src_ip,
+            "dst_ip": dst_ip,
+            "src_port": self.rng.randint(30000, 65535),
+            "dst_port": 53,
+            "protocol": "UDP",
+            "direction": "outbound",
+            "duration": round(self.rng.uniform(0.01, 0.08), 4),
+            "packet_count": self.rng.choice([1, 2]),
+            "byte_count": self.rng.randint(65, 150),
+            "tcp_flags": None,
+            "dns": {
+                "query": query,
+                "qtype": qtype,
+                "rcode": "NOERROR",
+                "query_length": len(query),
+            },
+            "tls": None,
+            "quic": None,
+        }
+
+    def _generate_encrypted_anomaly(self, idx: int) -> dict[str, Any]:
+        delta_sec = self.rng.uniform(0.5, 4.0)
+        self.current_time = datetime.fromtimestamp(
+            self.current_time.timestamp() + delta_sec, tz=timezone.utc
+        )
+
+        src_ip = f"192.168.1.{self.rng.randint(10, 180)}"
+        dst_ip = self.rng.choice(["198.51.100.22", "203.0.113.88", "192.0.2.14", "185.199.110.153"])
+        src_port = self.rng.randint(1024, 65535)
+
+        # Diverse encrypted anomaly archetypes (not a single static signature)
+        anomaly_type = self.rng.choices(
+            ["obsolete_tls_cipher", "direct_ip_sni", "obsolete_quic", "keystroke_timing", "malicious_ja3"],
+            weights=[30, 25, 15, 15, 15],
+        )[0]
+
+        if anomaly_type == "obsolete_tls_cipher":
+            protocol = "TCP"
+            dst_port = self.rng.choice([443, 8443])
+            duration = round(self.rng.uniform(0.5, 5.0), 4)
+            packet_count = self.rng.randint(10, 40)
+            byte_count = self.rng.randint(2000, 15000)
+            tcp_flags = "ACK-PSH"
+            tls = {
+                "version": self.rng.choice(["TLS 1.0", "TLS 1.1", "SSL 3.0"]),
+                "sni": self.rng.choice(["secure-backup.cloud.net", "legacy-portal.internal-mgmt.org"]),
+                "cipher_suite": self.rng.choice([
+                    "TLS_RSA_WITH_RC4_128_MD5",
+                    "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
+                    "TLS_RSA_WITH_RC4_128_SHA",
+                    "TLS_RSA_WITH_DES_CBC_SHA",
+                ]),
+            }
+            quic = None
+
+        elif anomaly_type == "direct_ip_sni":
+            protocol = "TCP"
+            dst_port = self.rng.choice([443, 9443])
+            duration = round(self.rng.uniform(0.2, 4.0), 4)
+            packet_count = self.rng.randint(8, 30)
+            byte_count = self.rng.randint(1500, 12000)
+            tcp_flags = "ACK-PSH"
+            ip_literal = self.rng.choice(["198.51.100.22", "203.0.113.88", "192.0.2.45"])
+            tls = {
+                "version": self.rng.choice(["TLS 1.2", "TLS 1.3"]),
+                "sni": ip_literal,
+            }
+            quic = None
+
+        elif anomaly_type == "obsolete_quic":
+            protocol = "UDP"
+            dst_port = 443
+            duration = round(self.rng.uniform(0.1, 2.0), 4)
+            packet_count = self.rng.randint(6, 25)
+            byte_count = self.rng.randint(1200, 9000)
+            tcp_flags = None
+            tls = None
+            quic = {
+                "version": self.rng.choice(["Q043", "Q046", "Q050", "mvfst-24"]),
+                "sni": self.rng.choice(["quic-edge.telemetry-node.net", "198.51.100.99"]),
+            }
+
+        elif anomaly_type == "keystroke_timing":
+            protocol = "TCP"
+            dst_port = self.rng.choice([443, 2222])
+            duration = round(self.rng.uniform(15.0, 45.0), 4)
+            packet_count = self.rng.randint(50, 120)
+            # Small packets typical of interactive keystroke encrypted shell (bytes_per_packet <= 80)
+            byte_count = packet_count * self.rng.randint(52, 74)
+            tcp_flags = "ACK-PSH"
+            tls = {
+                "version": "TLS 1.3",
+                "sni": "shell-relay.cloud-ops.net",
+            }
+            quic = None
+
+        else:  # malicious_ja3
+            protocol = "TCP"
+            dst_port = 443
+            duration = round(self.rng.uniform(0.4, 3.5), 4)
+            packet_count = self.rng.randint(10, 35)
+            byte_count = self.rng.randint(1800, 14000)
+            tcp_flags = "ACK-PSH"
+            tls = {
+                "version": "TLS 1.2",
+                "sni": "cdn-cache.cloud-service.com",
+                "ja3": self.rng.choice([
+                    "6734f37431670b3ab4292b8f60f29984",
+                    "b32309a26951912be7dba376398abc3b",
+                    "72a589da586844d7f0818ce684948eea",
+                ]),
+            }
+            quic = None
+
+        return {
+            "flow_id": f"enc-anomaly-{idx:06d}",
+            "timestamp": _format_timestamp(self.current_time),
+            "src_ip": src_ip,
+            "dst_ip": dst_ip,
+            "src_port": src_port,
+            "dst_port": dst_port,
+            "protocol": protocol,
+            "direction": "outbound",
+            "duration": duration,
+            "packet_count": packet_count,
+            "byte_count": byte_count,
+            "tcp_flags": tcp_flags,
+            "dns": None,
+            "tls": tls,
+            "quic": quic,
+        }
+
 
 
 def generate_flows(
