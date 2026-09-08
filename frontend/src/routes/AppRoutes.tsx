@@ -2,6 +2,9 @@ import type { FC } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { PageHeader } from '../components/layout/PageHeader';
+import { OverviewPage } from '../pages/OverviewPage';
+import { AlertsPage } from '../pages/AlertsPage';
+import { mockDataService } from '../services/MockDataService';
 
 /** Helper component for temporary placeholder pages */
 const PlaceholderPage: FC<{
@@ -67,26 +70,8 @@ export const AppRoutes: FC = () => {
         <Route index element={<Navigate to="/overview" replace />} />
 
         {/* 7 Primary Navigation Views */}
-        <Route
-          path="overview"
-          element={
-            <PlaceholderPage
-              title="Executive Overview"
-              description="High-level operational metrics, pipeline telemetry, and threat summary."
-              phase="Phase 5D"
-            />
-          }
-        />
-        <Route
-          path="alerts"
-          element={
-            <PlaceholderPage
-              title="Live Threat Alerts"
-              description="Filterable, paginated analyst alert table and evidence inspector drawer."
-              phase="Phase 5D"
-            />
-          }
-        />
+        <Route path="overview" element={<OverviewPage dataService={mockDataService} />} />
+        <Route path="alerts" element={<AlertsPage dataService={mockDataService} />} />
         <Route
           path="flows"
           element={
