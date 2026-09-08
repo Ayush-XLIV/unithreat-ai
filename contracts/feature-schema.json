@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Network Feature Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "flow_id",
+    "timestamp",
+    "features"
+  ],
+  "properties": {
+    "flow_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "entity_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "window_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "number",
+          "string",
+          "boolean",
+          "null"
+        ]
+      }
+    }
+  }
+}

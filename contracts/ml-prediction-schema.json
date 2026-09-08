@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ML Prediction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "flow_id",
+    "threat_class",
+    "score",
+    "model_version"
+  ],
+  "properties": {
+    "flow_id": {
+      "type": "string"
+    },
+    "threat_class": {
+      "type": "string"
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "model_version": {
+      "type": "string"
+    },
+    "calibrated": {
+      "type": "boolean"
+    }
+  }
+}
