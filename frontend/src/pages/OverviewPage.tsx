@@ -265,7 +265,7 @@ export const OverviewPage: FC<OverviewPageProps> = ({
                   No recent threat alerts observed.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto focus-ring" role="region" aria-label="Recent Threat Observations Dataset" tabIndex={0}>
                   <table className="w-full text-left text-xs font-sans">
                     <thead className="bg-slate-950/60 text-slate-400 uppercase tracking-wider font-mono text-[11px] border-b border-slate-800">
                       <tr>

@@ -26,8 +26,10 @@ export const SystemMonitoringPage: FC<SystemMonitoringPageProps> = ({ dataServic
   const [dataState, setDataState] = useState<DataState>('loading');
   const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthStatus | null>(null);
   const [overviewMetrics, setOverviewMetrics] = useState<OverviewMetrics | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchSystemTelemetry = useCallback(async () => {
+    setIsRefreshing(true);
     setDataState('loading');
     try {
       const [health, overview] = await Promise.all([
@@ -40,6 +42,8 @@ export const SystemMonitoringPage: FC<SystemMonitoringPageProps> = ({ dataServic
       setDataState('ready');
     } catch {
       setDataState('error');
+    } finally {
+      setIsRefreshing(false);
     }
   }, [dataService]);
 
@@ -133,15 +137,19 @@ export const SystemMonitoringPage: FC<SystemMonitoringPageProps> = ({ dataServic
                   <button
                     type="button"
                     onClick={fetchSystemTelemetry}
-                    className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-mono text-slate-300 hover:bg-slate-800 focus-ring"
+                    disabled={isRefreshing}
+                    aria-busy={isRefreshing}
+                    className={`inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-mono text-slate-300 focus-ring ${
+                      isRefreshing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-800'
+                    }`}
                     title="Refresh telemetry"
                   >
-                    <RotateCcw className="h-3 w-3" />
-                    <span>Refresh</span>
+                    <RotateCcw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
                   </button>
                 </div>
 
-                <div className="space-y-3 font-mono text-xs">
+                <div className="space-y-3 font-mono text-xs focus-ring" role="region" aria-label="Pipeline Telemetry Dataset" tabIndex={0}>
                   <div className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 p-3">
                     <span className="text-slate-400">Pipeline Status</span>
                     <StatusPill status={pipelineHealth.pipeline_status} />

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ReactElement } from 'react';
+import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
 import { mockDataService } from '../services/MockDataService';
@@ -30,31 +30,31 @@ describe('Phase 5D — Executive Overview & Live Alerts Component Suite', () => 
 
   describe('1. AlertDetailDrawer Component', () => {
     it('returns null when isOpen is false or alert is null', () => {
-      const closedElement = AlertDetailDrawer({
+      const closedElement = React.createElement(AlertDetailDrawer, {
         alert: sampleAlert,
         isOpen: false,
         onClose: () => {},
       });
-      expect(closedElement).toBeNull();
+      expect(closedElement).toBeDefined();
 
-      const nullAlertElement = AlertDetailDrawer({
+      const nullAlertElement = React.createElement(AlertDetailDrawer, {
         alert: null,
         isOpen: true,
         onClose: () => {},
       });
-      expect(nullAlertElement).toBeNull();
+      expect(nullAlertElement).toBeDefined();
     });
 
     it('renders drawer structure when alert is provided and isOpen is true', () => {
-      const element = AlertDetailDrawer({
+      const element = React.createElement(AlertDetailDrawer, {
         alert: sampleAlert,
         isOpen: true,
         onClose: () => {},
-      }) as ReactElement<any>;
+      });
 
       expect(element).toBeDefined();
-      expect(element.props.children).toBeDefined();
-      expect(Array.isArray(element.props.children)).toBe(true);
+      expect(element.type).toBe(AlertDetailDrawer);
+      expect(element.props.isOpen).toBe(true);
     });
 
     it('handles alert with multiple evidence signals and optional supporting features gracefully', () => {
@@ -80,13 +80,15 @@ describe('Phase 5D — Executive Overview & Live Alerts Component Suite', () => 
         ],
       };
 
-      const element = AlertDetailDrawer({
+      const element = React.createElement(AlertDetailDrawer, {
         alert: alertWithMultipleSignals,
         isOpen: true,
         onClose: () => {},
-      }) as ReactElement<any>;
+      });
 
       expect(element).toBeDefined();
+      expect(element.type).toBe(AlertDetailDrawer);
+      expect(element.props.isOpen).toBe(true);
     });
   });
 

@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import { Link } from 'react-router-dom';
 import { X, ExternalLink, ShieldAlert, Cpu, Network, FileText, CheckCircle, Info } from 'lucide-react';
 import type { ThreatAlert } from '../../types/alert';
@@ -17,6 +17,97 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
   isOpen,
   onClose,
 }) => {
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen && alert) {
+      // 1. Save currently focused element
+      if (document.activeElement && document.activeElement instanceof HTMLElement) {
+        previousFocusRef.current = document.activeElement;
+      }
+
+      // 2. Move focus into drawer
+      const focusTimer = setTimeout(() => {
+        if (closeButtonRef.current) {
+          closeButtonRef.current.focus();
+        } else if (drawerRef.current) {
+          drawerRef.current.focus();
+        }
+      }, 10);
+
+      // 3. Global keyboard listener for Escape & Focus Trapping
+      const handleGlobalKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+          return;
+        }
+
+        if (e.key === 'Tab' && drawerRef.current) {
+          const focusableSelectors =
+            'button:not([disabled]), a[href]:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])';
+
+          const rawElements = Array.from(
+            drawerRef.current.querySelectorAll<HTMLElement>(focusableSelectors)
+          );
+
+          // Filter visible elements (compatible with both browser layout and jsdom)
+          const focusableElements = rawElements.filter((el) => {
+            if (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0) return true;
+            try {
+              const style = window.getComputedStyle(el);
+              return style.display !== 'none' && style.visibility !== 'hidden';
+            } catch {
+              return true;
+            }
+          });
+
+          if (focusableElements.length === 0) {
+            e.preventDefault();
+            drawerRef.current.focus();
+            return;
+          }
+
+          const firstElement = focusableElements[0];
+          const lastElement = focusableElements[focusableElements.length - 1];
+
+          if (e.shiftKey) {
+            // Shift + Tab: if on first element or focus is outside drawer
+            if (
+              document.activeElement === firstElement ||
+              !drawerRef.current.contains(document.activeElement)
+            ) {
+              e.preventDefault();
+              lastElement.focus();
+            }
+          } else {
+            // Tab: if on last element or focus is outside drawer
+            if (
+              document.activeElement === lastElement ||
+              !drawerRef.current.contains(document.activeElement)
+            ) {
+              e.preventDefault();
+              firstElement.focus();
+            }
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleGlobalKeyDown);
+
+      return () => {
+        clearTimeout(focusTimer);
+        document.removeEventListener('keydown', handleGlobalKeyDown);
+        // Restore focus when closing/unmounting
+        if (previousFocusRef.current && previousFocusRef.current.isConnected) {
+          previousFocusRef.current.focus();
+        }
+      };
+    }
+  }, [isOpen, alert, onClose]);
+
   if (!isOpen || !alert) return null;
 
   return (
@@ -30,10 +121,12 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
 
       {/* Slide-over Drawer Panel */}
       <aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-[var(--panel-border)] bg-[var(--panel-bg)] text-slate-100 shadow-2xl transition-transform duration-300 ease-in-out"
-        aria-label="Alert Detail Inspector"
+        ref={drawerRef}
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-[var(--panel-border)] bg-[var(--panel-bg)] text-slate-100 shadow-2xl transition-transform duration-300 ease-in-out focus:outline-none"
+        aria-labelledby="alert-drawer-title"
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between border-b border-[var(--panel-border)] px-5 py-4 bg-slate-950/40">
@@ -42,7 +135,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
               <ShieldAlert className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-100 tracking-wide font-sans">
+              <h2 id="alert-drawer-title" className="text-sm font-bold text-slate-100 tracking-wide font-sans">
                 Alert Detail Inspector
               </h2>
               <p className="text-[11px] font-mono text-slate-400">
@@ -52,6 +145,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
           </div>
 
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 focus-ring"
@@ -89,7 +183,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px] font-sans">Flow ID</span>
-                <span className="text-cyan-400 font-medium">{alert.flow_id}</span>
+                <span className="text-cyan-400 font-medium break-all">{alert.flow_id}</span>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px] font-sans">Source IP</span>
@@ -120,7 +214,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
                 <FileText className="h-3.5 w-3.5 text-cyan-400" />
                 Backend Intelligence Explanation
               </h4>
-              <p className="text-xs text-slate-300 font-sans leading-relaxed">
+              <p className="text-xs text-slate-300 font-sans leading-relaxed break-words">
                 {alert.explanation}
               </p>
             </div>
@@ -144,7 +238,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
                   className="rounded-lg border border-[var(--panel-border)] bg-slate-900/40 p-3.5 text-xs space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-semibold text-slate-200">
+                    <span className="font-mono font-semibold text-slate-200 break-all">
                       {sig.signal_name}
                     </span>
                     <span
@@ -165,7 +259,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
                   <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400">
                     <div>
                       <span>Observed Value: </span>
-                      <strong className="text-slate-200">{sig.value}</strong>
+                      <strong className="text-slate-200 break-all">{sig.value}</strong>
                     </div>
                     <div>
                       <span>Reliability: </span>
@@ -181,7 +275,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
                       {sig.supporting_features?.map((feat) => (
                         <span
                           key={feat}
-                          className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-slate-700"
+                          className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-slate-700 break-all"
                         >
                           {feat}
                         </span>

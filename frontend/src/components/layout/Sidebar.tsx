@@ -33,6 +33,13 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
 ];
 
 export const Sidebar: FC<SidebarProps> = ({ isOpen = false, onClose }) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Escape' && onClose) {
+      e.preventDefault();
+      onClose();
+    }
+  };
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -50,6 +57,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen = false, onClose }) => {
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Main Navigation"
+        onKeyDown={handleKeyDown}
       >
         {/* Mobile Header inside Sidebar */}
         <div className="flex items-center justify-between p-3 border-b border-[var(--panel-border-subtle)] md:hidden">

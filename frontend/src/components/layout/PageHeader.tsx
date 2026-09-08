@@ -23,7 +23,7 @@ export const PageHeader: FC<PageHeaderProps> = ({
           </p>
         )}
       </div>
-      {actions && <div className="mt-3 md:mt-0 flex items-center gap-2">{actions}</div>}
+      {actions && <div className="mt-3 md:mt-0 flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 };

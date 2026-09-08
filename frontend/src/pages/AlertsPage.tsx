@@ -266,7 +266,7 @@ export const AlertsPage: FC<AlertsPageProps> = ({
         >
           {alertsResponse && alertsResponse.data.length > 0 && (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto focus-ring" role="region" aria-label="Live Threat Alerts Dataset" tabIndex={0}>
                 <table className="w-full text-left text-xs font-sans">
                   <thead className="bg-slate-950/60 text-slate-400 uppercase tracking-wider font-mono text-[11px] border-b border-slate-800">
                     <tr>

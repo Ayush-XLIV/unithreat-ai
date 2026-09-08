@@ -195,7 +195,8 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                       key={category}
                       type="button"
                       onClick={() => handleCategoryClick(category)}
-                      className={`text-left transition-all rounded-lg border p-4 space-y-3 ${
+                      aria-pressed={isSelected}
+                      className={`text-left transition-all rounded-lg border p-4 space-y-3 focus-ring ${
                         isSelected
                           ? 'border-cyan-500 bg-cyan-950/30 ring-1 ring-cyan-500'
                           : 'border-[var(--panel-border)] bg-[var(--panel-bg)] hover:border-slate-700 hover:bg-slate-900/60'
@@ -296,7 +297,7 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                   No alert records match the selected category filters.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto focus-ring" role="region" aria-label="Detection Analytics Category Alert Dataset" tabIndex={0}>
                   <table className="w-full text-left text-xs font-sans">
                     <thead className="bg-slate-950/60 text-slate-400 uppercase tracking-wider font-mono text-[11px] border-b border-slate-800">
                       <tr>
