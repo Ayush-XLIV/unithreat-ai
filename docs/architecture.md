@@ -600,22 +600,84 @@ Breaking changes to the alert contract must be deliberate and coordinated.
 
 ---
 
-# 14. Backend and Persistence
+# 13.1 Alert Fusion and Deduplication Architecture
+
+Alert generation combines deterministic statistical/behavioral detectors with ML model inference via the `AlertFusionEngine` (`src/unithreat/alerts/fusion.py`) and suppresses redundant alarms via the `AlertDeduplicator` (`src/unithreat/alerts/dedup.py`).
+
+### Alert Fusion Engine (Explicit Deterministic Cases)
+
+Alert fusion reconciles statistical detector outputs (`DetectionResult`) and tabular ML predictions (`MLPrediction`). Rather than applying a blanket weighted-average formula across all predictions, the engine evaluates four mutually exclusive, deterministic cases:
+
+1. **Case 1: Statistical Detection + ML Agree**
+   - Both the statistical detector and ML classifier identify the same threat class.
+   - The statistical threat class is preserved.
+   - Confidence receives a modest supporting boost: `confidence = min(1.0, stat_conf + (1.0 - stat_conf) * 0.25 * ml_score)`.
+   - An `EvidenceSignal` is appended with `direction="supporting"`, `reliability=0.85`, recording ML agreement.
+
+2. **Case 2: Statistical Detection + ML Disagree**
+   - The statistical detector identifies a threat, but ML classifies the flow as `BENIGN` or a different threat class.
+   - The statistical threat class is preserved because statistical evidence is directly observable and interpretable.
+   - Confidence is dampened: `confidence = stat_conf * 0.85`.
+   - An `EvidenceSignal` is appended with `direction="contradicting"`, `reliability=0.50`, recording ML disagreement.
+
+3. **Case 3: Statistical Detection Only**
+   - No ML prediction is available (e.g. model not loaded or optional feature missing).
+   - Statistical threat class, confidence, and severity are preserved completely unchanged.
+   - No artificial ML confidence or evidence is introduced.
+
+4. **Case 4: ML Detection Only (ML Hypothesis)**
+   - Statistical detectors found no anomaly, but the ML classifier predicted a malicious class with score $\ge 0.75$.
+   - Because the model is trained on synthetic data and produces an uncalibrated voting ratio (`calibrated: false`), this alert is explicitly treated as an *ML hypothesis*.
+   - Confidence is conservatively computed: `confidence = min(0.75, ml_score * 0.80)`.
+   - Severity is capped at `HIGH` (never `CRITICAL`).
+   - An `EvidenceSignal` is attached with `signal_name="ml_hypothesis"`, `reliability=0.65`, and `direction="supporting"`.
+
+### Bounded Alert Deduplication
+
+To prevent alert fatigue and volumetric memory exhaustion:
+- **Deduplication Key**: `(source_ip, destination_ip, threat_class)`.
+- **Bounded LRU Cache**: Implemented with an `OrderedDict` capped at 10,000 keys.
+- **Suppression Window**: Configurable duration (default 60 seconds). Duplicate alerts within this window are safely suppressed. Expired entries are pruned lazily.
+
+### Bounded In-Memory Storage
+
+For prototype operation without heavy external databases (Redis/PostgreSQL):
+- `BoundedAlertStore`: Thread-safe ring buffer (`collections.deque(maxlen=1000)`). Stores alerts newest-first. Supports filtering by `threat_class`, `severity`, and `limit`.
+- `BoundedFlowStore`: Thread-safe ring buffer (`collections.deque(maxlen=5000)`) indexed by `flow_id` for flow lookups.
+
+---
+
+# 14. Backend and Streaming Architecture
 
 ## Backend
 
 Preferred technology:
+- FastAPI (`src/unithreat/api/app.py`, `src/unithreat/api/routes.py`)
+- Uvicorn ASGI server
 
-- FastAPI
+### REST API Endpoints:
+- `GET /health` — Service health status, pipeline components, and model metadata.
+- `GET /alerts` — List recent alerts with query parameters (`limit`, `threat_class`, `severity`), newest-first.
+- `GET /alerts/{flow_id}` — Retrieve the specific alert associated with a flow identifier.
+- `GET /flows/{flow_id}` — Retrieve raw flow metadata for forensic investigation.
+- `GET /stats` — Real-time operational statistics (total flows, total alerts, alerts by threat class, alerts by severity).
+- `POST /ingest/flow` — Ingest a single raw flow JSON record into the live processing pipeline. Returns processing status and generated alerts.
 
-Responsibilities:
+### Passive Boundary Guarantee for Ingest API:
+`POST /ingest/flow` is strictly intended for local testing, dataset replay, and application ingestion.
+- The endpoint performs **zero active network communication**.
+- It does **not send packets, open sockets to external hosts, complete TCP handshakes, or establish return paths** to monitored network sources.
+- Monitored traffic sources remain strictly isolated behind the passive capture boundary.
 
-- expose alert APIs
-- provide detection data to the dashboard
-- manage application-level interfaces
-- expose system status and metrics where required
+## Realtime Streaming (WebSocket)
 
-The backend must not become an active network-control component.
+Technology:
+- WebSocket endpoint at `WS /ws/alerts` managed by `AlertStreamManager` (`src/unithreat/api/stream.py`).
+
+### Bounded Streaming Queues:
+- Each connected client is allocated a dedicated, bounded `asyncio.Queue(maxsize=100)`.
+- If a client queue fills up due to slow consumption, a deterministic **drop-oldest** policy is enforced to prevent unbounded memory growth.
+- Client disconnections are detected and cleaned up gracefully.
 
 ---
 
