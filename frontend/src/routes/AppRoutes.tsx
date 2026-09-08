@@ -1,9 +1,11 @@
 import type { FC } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { PageHeader } from '../components/layout/PageHeader';
 import { OverviewPage } from '../pages/OverviewPage';
 import { AlertsPage } from '../pages/AlertsPage';
+import { FlowsPage } from '../pages/FlowsPage';
+import { FlowInvestigationPage } from '../pages/FlowInvestigationPage';
 import { mockDataService } from '../services/MockDataService';
 
 /** Helper component for temporary placeholder pages */
@@ -38,30 +40,6 @@ const PlaceholderPage: FC<{
   );
 };
 
-/** Contextual Alert/Flow Investigation Route Placeholder */
-const AlertFlowInvestigationPlaceholder: FC = () => {
-  const { flowId } = useParams<{ flowId: string }>();
-  return (
-    <PlaceholderPage
-      title={`Alert / Flow Investigation: ${flowId || 'N/A'}`}
-      description={`Contextual threat alert evidence & feature investigation for flow_id: ${flowId || ''}.`}
-      phase="Phase 5E"
-    />
-  );
-};
-
-/** Contextual Flow Detail Inspector Route Placeholder */
-const FlowDetailPlaceholder: FC = () => {
-  const { flowId } = useParams<{ flowId: string }>();
-  return (
-    <PlaceholderPage
-      title={`Flow Detail Inspector: ${flowId || 'N/A'}`}
-      description={`Detailed protocol parameters & TLS/DNS/QUIC metadata inspection for flow_id: ${flowId || ''}.`}
-      phase="Phase 5E"
-    />
-  );
-};
-
 export const AppRoutes: FC = () => {
   return (
     <Routes>
@@ -72,16 +50,7 @@ export const AppRoutes: FC = () => {
         {/* 7 Primary Navigation Views */}
         <Route path="overview" element={<OverviewPage dataService={mockDataService} />} />
         <Route path="alerts" element={<AlertsPage dataService={mockDataService} />} />
-        <Route
-          path="flows"
-          element={
-            <PlaceholderPage
-              title="Passive Flow Explorer"
-              description="Normalized passive network flow observations and protocol metadata explorer."
-              phase="Phase 5E"
-            />
-          }
-        />
+        <Route path="flows" element={<FlowsPage dataService={mockDataService} />} />
         <Route
           path="threat-analysis"
           element={
@@ -124,8 +93,8 @@ export const AppRoutes: FC = () => {
         />
 
         {/* 2 Contextual Investigation Routes */}
-        <Route path="alerts/flow/:flowId" element={<AlertFlowInvestigationPlaceholder />} />
-        <Route path="flows/:flowId" element={<FlowDetailPlaceholder />} />
+        <Route path="alerts/flow/:flowId" element={<FlowInvestigationPage dataService={mockDataService} />} />
+        <Route path="flows/:flowId" element={<FlowInvestigationPage dataService={mockDataService} />} />
 
         {/* Catch-all fallback */}
         <Route path="*" element={<Navigate to="/overview" replace />} />
