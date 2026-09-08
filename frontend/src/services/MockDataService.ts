@@ -9,6 +9,7 @@ import type {
   FlowQueryParams,
   PaginatedResponse,
 } from '../types';
+import type { DataService } from './DataService';
 import {
   MOCK_ALERTS,
   MOCK_FLOWS,
@@ -23,7 +24,7 @@ import {
  * Deterministic, contract-compliant mock data service for UniThreat AI frontend.
  * Provides simulated passive network traffic observations and threat intelligence.
  */
-export class MockDataService {
+export class MockDataService implements DataService {
   private alerts: ThreatAlert[];
   private flows: PassiveFlow[];
   private features: NetworkFeatureRecord[];

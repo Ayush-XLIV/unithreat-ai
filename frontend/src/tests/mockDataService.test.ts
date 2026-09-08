@@ -3,6 +3,7 @@ import path from 'node:path';
 import Ajv2020 from 'ajv/dist/2020';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { MockDataService } from '../services/MockDataService';
+import type { DataService } from '../services/DataService';
 import {
   MOCK_ALERTS,
   MOCK_FLOWS,
@@ -196,6 +197,17 @@ describe('MockDataService & Dataset Contract Validation Suite', () => {
 
     beforeAll(() => {
       service = new MockDataService();
+    });
+
+    it('satisfies the DataService interface contract', () => {
+      const genericService: DataService = service;
+      expect(typeof genericService.getAlerts).toBe('function');
+      expect(typeof genericService.getFlows).toBe('function');
+      expect(typeof genericService.getFlowById).toBe('function');
+      expect(typeof genericService.getFeaturesByFlowId).toBe('function');
+      expect(typeof genericService.getMlPredictionsByFlowId).toBe('function');
+      expect(typeof genericService.getOverviewMetrics).toBe('function');
+      expect(typeof genericService.getPipelineHealth).toBe('function');
     });
 
     it('returns environment status indicating DEMO / REPLAY environment', () => {
