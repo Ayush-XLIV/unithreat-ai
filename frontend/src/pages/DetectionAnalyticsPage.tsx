@@ -1,17 +1,31 @@
 import { useState, useEffect, useCallback, type FC, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   Activity,
-  ShieldAlert,
   AlertOctagon,
+  Bell,
+  Clock,
+  Eye,
   Filter,
+  Layers,
   RotateCcw,
   Search,
-  Eye,
-  Info,
-  Layers,
+  ShieldAlert,
   Zap,
+  Target,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+  LabelList,
+  CartesianGrid,
+} from 'recharts';
 import type { DataService } from '../services/DataService';
 import type {
   OverviewMetrics,
@@ -19,8 +33,6 @@ import type {
   ThreatAlert,
   AlertQueryParams,
 } from '../types';
-import { PageHeader } from '../components/layout/PageHeader';
-import { MetricCard } from '../components/common/MetricCard';
 import { SeverityBadge } from '../components/common/SeverityBadge';
 import { ThreatClassBadge } from '../components/common/ThreatClassBadge';
 import { ConfidenceGauge } from '../components/common/ConfidenceGauge';
@@ -41,6 +53,55 @@ const SIH_THREAT_CATEGORIES = [
   'Reconnaissance / Port Scanning',
   'Data Exfiltration',
 ] as const;
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.06,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.22 } },
+};
+
+// Concise threat category presentation labels without altering backend data
+function getShortThreatLabel(fullThreatClass: string): string {
+  const tc = (fullThreatClass || '').toLowerCase();
+  if (tc.includes('ddos') || tc.includes('volumetric')) return 'DDoS / Volumetric';
+  if (tc.includes('botnet') || tc.includes('beacon') || tc.includes('c2')) return 'Botnet C2';
+  if (tc.includes('dga') || tc.includes('dns')) return 'DGA / DNS Tunnel';
+  if (tc.includes('encrypted') || tc.includes('malware')) return 'Encrypted Malware';
+  if (tc.includes('recon') || tc.includes('scan')) return 'Recon / Port Scan';
+  if (tc.includes('exfiltration') || tc.includes('data')) return 'Data Exfiltration';
+  return fullThreatClass;
+}
+
+// Custom Tooltip displaying full authoritative threat class name and alert count
+const CustomThreatTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="rounded-lg border border-[#1b2433] bg-[#090d14] p-3 shadow-2xl text-xs font-sans space-y-1.5">
+        <div className="flex items-center gap-2 border-b border-[#1b2433] pb-1.5">
+          <span className="h-2 w-2 rounded-full bg-cyan-400" />
+          <span className="font-semibold text-slate-100 font-mono text-[11px]">{data.name}</span>
+        </div>
+        <div className="text-slate-300 text-[11px]">
+          Category: <span className="font-medium text-slate-200">{data.fullName}</span>
+        </div>
+        <div className="text-cyan-400 font-mono font-bold text-xs pt-0.5">
+          Detections: {data.count} {data.count === 1 ? 'alert' : 'alerts'}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataService }) => {
   const [dataState, setDataState] = useState<DataState>('loading');
@@ -118,74 +179,344 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
     setIsDrawerOpen(true);
   };
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Detection Analytics"
-        description="Backend-driven threat category telemetry, SIH threat class breakdowns, and category-filtered alert inspection."
-      />
+  // Process Threat Class Distribution for Recharts Horizontal Bar Chart
+  const threatChartData = metrics
+    ? Object.entries(metrics.threat_counts_by_class)
+        .map(([threatClass, count]) => ({
+          fullName: threatClass,
+          name: getShortThreatLabel(threatClass),
+          count,
+        }))
+        .sort((a, b) => b.count - a.count)
+    : [];
 
-      {/* Unexposed Time-Series Telemetry Requirement Notice */}
-      <div className="rounded-lg border border-cyan-900/50 bg-slate-900/80 p-4 font-mono text-xs text-cyan-300 flex items-start gap-3">
-        <Info className="h-5 w-5 text-cyan-400 shrink-0 mt-0.5" />
+  // Calculate severity proportions from metrics
+  const totalAlerts = metrics?.total_alerts || 0;
+  const criticalPct = totalAlerts > 0 ? ((metrics?.critical_alerts || 0) / totalAlerts) * 100 : 0;
+  const highPct = totalAlerts > 0 ? ((metrics?.high_alerts || 0) / totalAlerts) * 100 : 0;
+  const mediumPct = totalAlerts > 0 ? ((metrics?.medium_alerts || 0) / totalAlerts) * 100 : 0;
+  const lowPct = totalAlerts > 0 ? ((metrics?.low_alerts || 0) / totalAlerts) * 100 : 0;
+
+  // Calculate confidence bands from current alert records
+  const loadedAlerts = alertsResponse?.data || [];
+  const highConfidenceCount = loadedAlerts.filter((a) => a.confidence >= 0.9).length;
+  const modConfidenceCount = loadedAlerts.filter((a) => a.confidence >= 0.7 && a.confidence < 0.9).length;
+  const lowConfidenceCount = loadedAlerts.filter((a) => a.confidence < 0.7).length;
+
+  return (
+    <div className="space-y-7">
+      {/* 1. Analytics Command Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[#1b2433]">
         <div className="space-y-1">
-          <div className="font-semibold text-cyan-200 uppercase tracking-wider text-[11px]">
-            BACKEND/API REQUIREMENT — NOT CURRENTLY DEFINED
+          <div className="flex items-center gap-2.5">
+            <Target className="h-5 w-5 text-cyan-400 shrink-0" />
+            <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-100 font-mono uppercase">
+              Detection Analytics Workspace
+            </h1>
           </div>
-          <p className="font-sans text-slate-300 text-xs">
-            Protocol/traffic time-series flow rate trends, packet velocity graphs, and detection latency histograms are not defined in backend telemetry schemas. The frontend strictly displays category detection totals provided by backend telemetry.
+          <p className="text-xs text-slate-400 font-sans leading-relaxed">
+            Security detection distribution, category analytics, and model confidence across observed passive IP traffic
           </p>
         </div>
-      </div>
+
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 text-xs font-mono text-cyan-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shrink-0" aria-hidden="true" />
+            <span className="font-semibold text-[10px] tracking-wide">PASSIVE DETECTIONS — READ ONLY</span>
+          </div>
+        </div>
+      </header>
 
       <DataStateWrapper state={dataState} onRetry={fetchAnalyticsData}>
         {metrics && alertsResponse && (
-          <div className="space-y-6">
-            {/* High-Level Overview Metrics */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard
-                label="Total Detected Alerts"
-                value={metrics.total_alerts}
-                description="Aggregated backend detection count"
-                icon={<ShieldAlert className="h-4 w-4" />}
-                statusContext="warning"
-              />
-              <MetricCard
-                label="Monitored Flow Volume"
-                value={metrics.total_flows}
-                description="Passive records processed"
-                icon={<Layers className="h-4 w-4" />}
-                statusContext="info"
-              />
-              <MetricCard
-                label="Flow Throughput Rate"
-                value={`${metrics.flows_per_second} /s`}
-                description="Backend ingestion velocity"
-                icon={<Zap className="h-4 w-4" />}
-                statusContext="healthy"
-              />
-              <MetricCard
-                label="Active Threat Categories"
-                value={Object.keys(metrics.threat_counts_by_class).length}
-                description="SIH threat classes detected"
-                icon={<Activity className="h-4 w-4" />}
-                statusContext="info"
-              />
-            </section>
+          <motion.div
+            className="space-y-7"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* 2. Primary Detection Signals Rail */}
+            <motion.section variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="rounded-lg bg-[#0c1017] p-4 border border-[#1b2433] border-l-4 border-l-rose-500 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-sans text-slate-400">
+                  <span className="font-mono uppercase font-semibold text-slate-300 text-[11px]">
+                    Total Detected Alerts
+                  </span>
+                  <Bell className="h-4 w-4 text-rose-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-extrabold text-slate-100 font-mono tracking-tight">
+                    {metrics.total_alerts.toLocaleString()}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-sans">
+                  Aggregated detection engine count
+                </span>
+              </div>
 
-            {/* SIH 6 Threat Category Grid */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-[var(--panel-border-subtle)] pb-2">
-                <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
+              <div className="rounded-lg bg-[#0c1017] p-4 border border-[#1b2433] border-l-4 border-l-cyan-500 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-sans text-slate-400">
+                  <span className="font-mono uppercase font-semibold text-slate-300 text-[11px]">
+                    Monitored Flow Volume
+                  </span>
+                  <Layers className="h-4 w-4 text-cyan-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-extrabold text-cyan-300 font-mono tracking-tight">
+                    {metrics.total_flows.toLocaleString()}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-sans">
+                  Passive records processed
+                </span>
+              </div>
+
+              <div className="rounded-lg bg-[#0c1017] p-4 border border-[#1b2433] border-l-4 border-l-emerald-500 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-sans text-slate-400">
+                  <span className="font-mono uppercase font-semibold text-slate-300 text-[11px]">
+                    Flow Throughput Rate
+                  </span>
+                  <Zap className="h-4 w-4 text-emerald-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-extrabold text-emerald-300 font-mono tracking-tight">
+                    {metrics.flows_per_second} <span className="text-sm font-normal text-slate-400">/s</span>
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-sans">
+                  Backend ingestion velocity
+                </span>
+              </div>
+
+              <div className="rounded-lg bg-[#0c1017] p-4 border border-[#1b2433] border-l-4 border-l-amber-500 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-sans text-slate-400">
+                  <span className="font-mono uppercase font-semibold text-slate-300 text-[11px]">
+                    Active Threat Categories
+                  </span>
+                  <Activity className="h-4 w-4 text-amber-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-extrabold text-amber-300 font-mono tracking-tight">
+                    {Object.keys(metrics.threat_counts_by_class).length} <span className="text-sm font-normal text-slate-400">/ 6</span>
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-sans">
+                  SIH threat classes detected
+                </span>
+              </div>
+            </motion.section>
+
+            {/* 3. Threat Class Distribution Chart (Reference-Inspired Surface) & Severity Breakout */}
+            <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Threat Class Bar Chart (Spacious Visualization-First Surface) */}
+              <div className="lg:col-span-2 rounded-xl bg-[#0c1017] p-5 border border-[#1b2433] space-y-4 shadow-sm flex flex-col justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-3 border-b border-[#1b2433]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <AlertOctagon className="h-4 w-4 text-cyan-400 shrink-0" />
+                      <h2 className="text-xs font-bold text-slate-100 uppercase tracking-wider font-mono">
+                        THREAT CATEGORY DISTRIBUTION
+                      </h2>
+                    </div>
+                    <p className="text-xs text-slate-400 font-sans mt-0.5">
+                      Authoritative threat observations by detected SIH category
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-400 bg-[#121824] px-2.5 py-1 rounded border border-slate-800/80 self-start sm:self-auto">
+                    Category Breakdown
+                  </span>
+                </div>
+
+                {/* Recharts BarChart with Gridlines & End Counts (Matching Reference Quality) */}
+                <div className="h-60 w-full pt-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={threatChartData}
+                      margin={{ top: 5, right: 40, left: 10, bottom: 5 }}
+                    >
+                      <CartesianGrid stroke="#1b2433" strokeDasharray="3 3" horizontal={true} vertical={false} />
+                      <XAxis
+                        type="number"
+                        stroke="#64748b"
+                        fontSize={10}
+                        tickLine={false}
+                        allowDecimals={false}
+                        axisLine={{ stroke: '#1b2433' }}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        stroke="#94a3b8"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={{ stroke: '#1b2433' }}
+                        width={145}
+                      />
+                      <Tooltip content={<CustomThreatTooltip />} cursor={{ fill: '#121824', opacity: 0.6 }} />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
+                        {threatChartData.map((_entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={index === 0 ? '#06b6d4' : index === 1 ? '#0284c7' : '#0369a1'}
+                          />
+                        ))}
+                        <LabelList
+                          dataKey="count"
+                          position="right"
+                          fill="#06b6d4"
+                          fontSize={11}
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-[#1b2433]/60">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-cyan-400" />
+                    Categorical Threat Density
+                  </span>
+                  <span>Authoritative Sensor Stream</span>
+                </div>
+              </div>
+
+              {/* Severity & Confidence Summary Surface */}
+              <div className="rounded-xl bg-[#0c1017] p-5 border border-[#1b2433] space-y-4 flex flex-col justify-between shadow-sm">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#1b2433]/80 pb-3">
+                    <h2 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-rose-400" />
+                      Severity Breakout
+                    </h2>
+                    <span className="text-xs text-slate-400 font-mono">
+                      Total: {totalAlerts}
+                    </span>
+                  </div>
+
+                  {/* Proportional Stacked Severity Rail */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-sans">
+                      <span>Proportional Distribution</span>
+                    </div>
+                    <div className="flex h-2.5 w-full overflow-hidden rounded bg-slate-900 border border-slate-800">
+                      {criticalPct > 0 && (
+                        <div
+                          style={{ width: `${criticalPct}%` }}
+                          className="bg-rose-500 transition-all duration-300"
+                          title={`Critical: ${metrics.critical_alerts}`}
+                        />
+                      )}
+                      {highPct > 0 && (
+                        <div
+                          style={{ width: `${highPct}%` }}
+                          className="bg-orange-500 transition-all duration-300"
+                          title={`High: ${metrics.high_alerts}`}
+                        />
+                      )}
+                      {mediumPct > 0 && (
+                        <div
+                          style={{ width: `${mediumPct}%` }}
+                          className="bg-amber-500 transition-all duration-300"
+                          title={`Medium: ${metrics.medium_alerts}`}
+                        />
+                      )}
+                      {lowPct > 0 && (
+                        <div
+                          style={{ width: `${lowPct}%` }}
+                          className="bg-slate-500 transition-all duration-300"
+                          title={`Low: ${metrics.low_alerts}`}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Aligned Severity Rows */}
+                  <div className="space-y-2 pt-1 text-xs font-sans">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded bg-rose-950/20 border border-rose-900/30">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-rose-500" aria-hidden="true" />
+                        <span className="font-semibold text-rose-300 uppercase text-[11px]">Critical</span>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono">
+                        <span className="font-bold text-rose-200">{metrics.critical_alerts}</span>
+                        <span className="text-[10px] text-rose-400/80">({criticalPct.toFixed(0)}%)</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded bg-orange-950/20 border border-orange-900/30">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-orange-500" aria-hidden="true" />
+                        <span className="font-semibold text-orange-300 uppercase text-[11px]">High</span>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono">
+                        <span className="font-bold text-orange-200">{metrics.high_alerts}</span>
+                        <span className="text-[10px] text-orange-400/80">({highPct.toFixed(0)}%)</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded bg-amber-950/20 border border-amber-900/30">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden="true" />
+                        <span className="font-semibold text-amber-300 uppercase text-[11px]">Medium</span>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono">
+                        <span className="font-bold text-amber-200">{metrics.medium_alerts}</span>
+                        <span className="text-[10px] text-amber-400/80">({mediumPct.toFixed(0)}%)</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded bg-slate-800/20 border border-slate-700/30">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
+                        <span className="font-semibold text-slate-300 uppercase text-[11px]">Low</span>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono">
+                        <span className="font-bold text-slate-200">{metrics.low_alerts}</span>
+                        <span className="text-[10px] text-slate-400">({lowPct.toFixed(0)}%)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Model Confidence Breakdown (Derived from loaded records) */}
+                <div className="pt-3 border-t border-[#1b2433]/80 space-y-2">
+                  <span className="text-[11px] font-mono font-semibold uppercase text-slate-400 tracking-wider">
+                    Model Confidence Distribution ({loadedAlerts.length} Records)
+                  </span>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                    <div className="rounded border border-emerald-900/40 bg-emerald-950/20 p-2">
+                      <span className="text-emerald-400 text-[10px] block font-sans font-medium">≥90% High</span>
+                      <span className="font-bold text-emerald-200 mt-0.5 block">{highConfidenceCount}</span>
+                    </div>
+                    <div className="rounded border border-cyan-900/40 bg-cyan-950/20 p-2">
+                      <span className="text-cyan-400 text-[10px] block font-sans font-medium">70-89% Mod</span>
+                      <span className="font-bold text-cyan-200 mt-0.5 block">{modConfidenceCount}</span>
+                    </div>
+                    <div className="rounded border border-slate-700/40 bg-slate-800/20 p-2">
+                      <span className="text-slate-400 text-[10px] block font-sans font-medium">&lt;70% Low</span>
+                      <span className="font-bold text-slate-300 mt-0.5 block">{lowConfidenceCount}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.section>
+
+            {/* 4. Interactive SIH Threat Category Filter Grid */}
+            <motion.section variants={itemVariants} className="space-y-3">
+              <div className="flex items-center justify-between border-b border-[#1b2433]/80 pb-2">
+                <h2 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
                   <AlertOctagon className="h-4 w-4 text-cyan-400" />
                   SIH Threat Category Telemetry Breakdown
-                </h3>
-                <span className="text-xs text-slate-400 font-mono">
+                </h2>
+                <span className="text-[11px] text-slate-400 font-mono">
                   Click category to filter table below
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {SIH_THREAT_CATEGORIES.map((category) => {
                   const count = metrics.threat_counts_by_class[category] || 0;
                   const isSelected = threatClassFilter === category;
@@ -196,21 +527,21 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                       type="button"
                       onClick={() => handleCategoryClick(category)}
                       aria-pressed={isSelected}
-                      className={`text-left transition-all rounded-lg border p-4 space-y-3 focus-ring ${
+                      className={`text-left transition-all rounded-lg border p-3.5 space-y-2.5 focus-ring ${
                         isSelected
                           ? 'border-cyan-500 bg-cyan-950/30 ring-1 ring-cyan-500'
-                          : 'border-[var(--panel-border)] bg-[var(--panel-bg)] hover:border-slate-700 hover:bg-slate-900/60'
+                          : 'border-[#1b2433] bg-[#0c1017] hover:border-slate-700 hover:bg-[#121824]/60'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <ThreatClassBadge threatClass={category} size="sm" />
-                        <span className="font-mono text-lg font-bold text-slate-100">
+                        <span className="font-mono text-base font-bold text-slate-100">
                           {count}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-mono pt-1 border-t border-slate-800/60">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1 border-t border-slate-800/60">
                         <span>Status: {count > 0 ? 'ACTIVE' : 'NO DETECTIONS'}</span>
-                        <span className="text-cyan-400 hover:underline">
+                        <span className="text-cyan-400 hover:underline font-sans font-medium">
                           {isSelected ? 'Filter Active' : 'Filter Alerts →'}
                         </span>
                       </div>
@@ -218,11 +549,11 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                   );
                 })}
               </div>
-            </div>
+            </motion.section>
 
-            {/* Filter Control Bar */}
-            <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--panel-border-subtle)] pb-3">
+            {/* 5. Filter Control Bar */}
+            <motion.section variants={itemVariants} className="rounded-lg border border-[#1b2433] bg-[#0c1017] p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1b2433]/80 pb-3">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-300 font-mono">
                   <Filter className="h-4 w-4 text-cyan-400" />
                   <span>Category Alert Filters</span>
@@ -231,7 +562,7 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-mono text-slate-300 hover:bg-slate-800 hover:text-slate-100 focus-ring"
+                  className="inline-flex items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-mono text-slate-300 hover:bg-slate-800 hover:text-slate-100 focus-ring transition-colors"
                 >
                   <RotateCcw className="h-3 w-3" />
                   <span>Reset Filters</span>
@@ -281,15 +612,15 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                   </select>
                 </div>
               </div>
-            </div>
+            </motion.section>
 
-            {/* Authoritative Category Alert Records */}
-            <div className="rounded-lg border border-[var(--panel-border)] bg-[var(--panel-bg)] p-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-[var(--panel-border-subtle)] pb-3">
-                <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
+            {/* 6. Authoritative Category Alert Records Table */}
+            <motion.section variants={itemVariants} className="rounded-lg border border-[#1b2433] bg-[#0c1017] p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-[#1b2433]/80 pb-3">
+                <h2 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
                   <ShieldAlert className="h-4 w-4 text-cyan-400" />
                   Backend Category Alert Records ({alertsResponse.total})
-                </h3>
+                </h2>
               </div>
 
               {alertsResponse.data.length === 0 ? (
@@ -297,9 +628,9 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                   No alert records match the selected category filters.
                 </div>
               ) : (
-                <div className="overflow-x-auto focus-ring" role="region" aria-label="Detection Analytics Category Alert Dataset" tabIndex={0}>
+                <div className="overflow-x-auto focus-ring rounded border border-slate-800/80" role="region" aria-label="Detection Analytics Category Alert Dataset" tabIndex={0}>
                   <table className="w-full text-left text-xs font-sans">
-                    <thead className="bg-slate-950/60 text-slate-400 uppercase tracking-wider font-mono text-[11px] border-b border-slate-800">
+                    <thead className="bg-[#121824] text-slate-400 uppercase tracking-wider font-mono text-[11px] border-b border-[#1b2433]">
                       <tr>
                         <th className="py-2.5 px-3">Timestamp</th>
                         <th className="py-2.5 px-3">Severity</th>
@@ -313,11 +644,11 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                         <th className="py-2.5 px-3 text-right">Inspect</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-slate-800/60 bg-[#0c1017]">
                       {alertsResponse.data.map((alert) => (
                         <tr
                           key={`${alert.flow_id}-${alert.timestamp}-${alert.threat_class}`}
-                          className="hover:bg-slate-800/30 transition-colors"
+                          className="hover:bg-[#121824] transition-colors"
                         >
                           <td className="py-2.5 px-3 font-mono text-slate-300 whitespace-nowrap">
                             {alert.timestamp}
@@ -334,7 +665,7 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                           <td className="py-2.5 px-3 font-mono whitespace-nowrap">
                             <Link
                               to={`/flows/${alert.flow_id}`}
-                              className="text-cyan-400 hover:underline"
+                              className="text-cyan-400 hover:text-cyan-300 hover:underline font-semibold"
                               title={`Inspect flow ${alert.flow_id}`}
                             >
                               {alert.flow_id}
@@ -356,7 +687,7 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                             <button
                               type="button"
                               onClick={() => handleInspectAlert(alert)}
-                              className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-700 focus-ring font-mono"
+                              className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-700 hover:text-white focus-ring font-mono transition-colors"
                               title="Inspect evidence details"
                             >
                               <Eye className="h-3 w-3" />
@@ -369,9 +700,9 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                   </table>
                 </div>
               )}
-            </div>
+            </motion.section>
 
-            {/* Pagination Controls */}
+            {/* 7. Pagination Controls */}
             <PaginationControls
               page={alertsResponse.page}
               limit={alertsResponse.limit}
@@ -379,11 +710,29 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
               hasMore={alertsResponse.has_more}
               onPageChange={(newPage) => setPage(newPage)}
             />
-          </div>
+
+            {/* 8. Compact Time-Series Telemetry Data Gap Notice */}
+            <motion.section variants={itemVariants}>
+              <div className="rounded-md border border-[#1b2433] bg-[#0c1017] px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 text-slate-400">
+                  <Clock className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                  <span className="font-semibold text-slate-300 font-mono uppercase text-[11px]">
+                    Detection Time-Series Telemetry:
+                  </span>
+                  <span className="text-slate-400 font-sans text-[11px]">
+                    Historical flow rate graphs and detection latency histograms are not defined in backend telemetry schemas
+                  </span>
+                </div>
+                <span className="inline-flex items-center rounded border border-slate-700/60 bg-[#121824] px-2 py-0.5 text-[10px] font-mono text-slate-400 self-start sm:self-auto">
+                  BACKEND/API REQUIREMENT — NOT CURRENTLY DEFINED
+                </span>
+              </div>
+            </motion.section>
+          </motion.div>
         )}
       </DataStateWrapper>
 
-      {/* Alert Detail Drawer */}
+      {/* Alert Detail Inspector Drawer */}
       <AlertDetailDrawer
         alert={selectedAlert}
         isOpen={isDrawerOpen}

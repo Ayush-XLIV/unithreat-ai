@@ -2,28 +2,39 @@
 
 @layer base {
   :root {
-    /* Color Palette - Dark SOC Operations Console */
-    --bg-dark-soc: #0b0f17;
-    --panel-bg: #111827;
-    --panel-border: #1e293b;
-    --panel-border-subtle: #0f172a;
+    /* Color Palette - Black-First SOC Operations Console */
+    --bg-dark-soc: #030507;
+    --panel-bg: #080c11;
+    --panel-subsurface: #0a0f14;
+    --panel-border: #151d28;
+    --panel-border-subtle: #121923;
+    --panel-border-active: #1a2330;
+
+    /* Elevated Data Surfaces */
+    --panel-elevated: #0d131a;
+    --panel-elevated-hover: #111820;
+
+    /* Brand Accents */
+    --accent-cyan: #06b6d4;
+    --accent-teal: #0d9488;
+    --accent-emerald: #10b981;
 
     /* Semantic Security Severity Tokens */
     --severity-critical: #f43f5e;
     --severity-critical-bg: rgba(244, 63, 94, 0.12);
-    --severity-critical-border: rgba(244, 63, 94, 0.3);
+    --severity-critical-border: rgba(244, 63, 94, 0.35);
 
     --severity-high: #f97316;
     --severity-high-bg: rgba(249, 115, 22, 0.12);
-    --severity-high-border: rgba(249, 115, 22, 0.3);
+    --severity-high-border: rgba(249, 115, 22, 0.35);
 
     --severity-medium: #f59e0b;
     --severity-medium-bg: rgba(245, 158, 11, 0.12);
-    --severity-medium-border: rgba(245, 158, 11, 0.3);
+    --severity-medium-border: rgba(245, 158, 11, 0.35);
 
     --severity-low: #64748b;
     --severity-low-bg: rgba(100, 116, 139, 0.12);
-    --severity-low-border: rgba(100, 116, 139, 0.3);
+    --severity-low-border: rgba(100, 116, 139, 0.35);
 
     /* Operational Status Tokens */
     --status-healthy: #10b981;
@@ -38,15 +49,32 @@
   body {
     background-color: var(--bg-dark-soc);
     color: #f8fafc;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
     margin: 0;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
+}
+
+/* Custom SOC Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #030507;
+}
+::-webkit-scrollbar-thumb {
+  background: #151d28;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #1a2330;
 }
 
 /* Common focus indicator helper class */
@@ -56,4 +84,12 @@
 .focus-ring:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* Subtle background SOC grid pattern */
+.bg-soc-grid {
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, rgba(21, 29, 40, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(21, 29, 40, 0.15) 1px, transparent 1px);
 }

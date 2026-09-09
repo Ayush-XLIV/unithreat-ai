@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { HeroPage } from '../pages/HeroPage';
 import { OverviewPage } from '../pages/OverviewPage';
 import { AlertsPage } from '../pages/AlertsPage';
 import { FlowsPage } from '../pages/FlowsPage';
@@ -14,10 +15,11 @@ import { mockDataService } from '../services/MockDataService';
 export const AppRoutes: FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<AppShell />}>
-        {/* Redirect root path to /overview */}
-        <Route index element={<Navigate to="/overview" replace />} />
+      {/* Root Path: Hero / Landing Page (No AppShell/Sidebar) */}
+      <Route path="/" element={<HeroPage />} />
 
+      {/* Operational Console Routes (Wrapped in AppShell with Sidebar & Header) */}
+      <Route element={<AppShell />}>
         {/* 7 Primary Navigation Views */}
         <Route path="overview" element={<OverviewPage dataService={mockDataService} />} />
         <Route path="alerts" element={<AlertsPage dataService={mockDataService} />} />
