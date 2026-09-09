@@ -27,20 +27,13 @@ import { DataStateWrapper, type DataState } from '../components/common/DataState
 import { PaginationControls } from '../components/common/PaginationControls';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
 
+import { CANONICAL_THREAT_FILTER_OPTIONS } from '../constants/threats';
+
 export interface ThreatAnalysisPageProps {
   dataService: DataService;
 }
 
 const SEVERITY_OPTIONS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
-const THREAT_CLASS_OPTIONS = [
-  'ALL',
-  'Volumetric / Protocol DDoS',
-  'Botnet C2 Beaconing',
-  'DGA / DNS Tunneling',
-  'Malware Inside Encrypted Sessions',
-  'Reconnaissance / Port Scanning',
-  'Data Exfiltration',
-];
 
 export const ThreatAnalysisPage: FC<ThreatAnalysisPageProps> = ({ dataService }) => {
   const [dataState, setDataState] = useState<DataState>('loading');
@@ -306,9 +299,9 @@ export const ThreatAnalysisPage: FC<ThreatAnalysisPageProps> = ({ dataService })
                     }
                     className="w-full rounded border border-slate-700 bg-slate-950/80 py-1.5 px-2.5 font-mono text-xs text-slate-200 focus-ring"
                   >
-                    {THREAT_CLASS_OPTIONS.map((tc) => (
-                      <option key={tc} value={tc}>
-                        {tc === 'ALL' ? 'All Threat Classes' : tc}
+                    {CANONICAL_THREAT_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
                       </option>
                     ))}
                   </select>

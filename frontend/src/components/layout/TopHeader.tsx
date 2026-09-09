@@ -1,16 +1,21 @@
 import { useState, useEffect, type FC } from 'react';
-import { Menu, X, ShieldAlert, Clock, Activity } from 'lucide-react';
+import { Menu, X, ShieldAlert, Clock, Activity, Radio } from 'lucide-react';
+import type { DataService } from '../../services/DataService';
+import { webSocketService, type WebSocketConnectionStatus } from '../../services/WebSocketService';
 
 export interface TopHeaderProps {
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
+  dataService?: DataService;
 }
 
 export const TopHeader: FC<TopHeaderProps> = ({
   onToggleSidebar,
   isSidebarOpen = false,
+  dataService,
 }) => {
   const [timeString, setTimeString] = useState<string>('');
+  const [wsStatus, setWsStatus] = useState<WebSocketConnectionStatus>(webSocketService.getStatus());
 
   useEffect(() => {
     const updateTime = () => {
@@ -21,6 +26,17 @@ export const TopHeader: FC<TopHeaderProps> = ({
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = webSocketService.onStatusChange((status) => {
+      setWsStatus(status);
+    });
+    return unsubscribe;
+  }, []);
+
+  const envStatus = dataService && 'getEnvironmentStatus' in dataService
+    ? (dataService as { getEnvironmentStatus: () => { isMock: boolean; label: string } }).getEnvironmentStatus()
+    : { isMock: false, label: 'LIVE BACKEND — REALTIME DETECTION' };
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-[var(--panel-border)] bg-[var(--panel-bg)] px-4 text-slate-200 select-none">
@@ -59,18 +75,47 @@ export const TopHeader: FC<TopHeaderProps> = ({
           <span>PASSIVE UNIDIRECTIONAL INGEST — READ ONLY</span>
         </div>
 
-        {/* Mock Environment Banner */}
-        <div className="inline-flex items-center gap-1.5 rounded border border-amber-800/40 bg-amber-950/30 px-2.5 py-1 text-xs font-medium text-amber-300">
-          <span>DEMO / REPLAY DATA — SIMULATED ENVIRONMENT</span>
-        </div>
+        {/* Environment Banner */}
+        {envStatus.isMock ? (
+          <div className="inline-flex items-center gap-1.5 rounded border border-amber-800/40 bg-amber-950/30 px-2.5 py-1 text-xs font-medium text-amber-300">
+            <span>{envStatus.label}</span>
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 rounded border border-emerald-800/40 bg-emerald-950/30 px-2.5 py-1 text-xs font-medium text-emerald-300">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>{envStatus.label}</span>
+          </div>
+        )}
       </div>
 
-      {/* Right section: Telemetry Placeholder & UTC Clock */}
+      {/* Right section: Stream Status & UTC Clock */}
       <div className="flex items-center gap-3">
-        {/* Neutral Telemetry Status Placeholder */}
-        <div className="hidden sm:inline-flex items-center gap-1.5 rounded border border-slate-700/50 bg-slate-800/30 px-2.5 py-1 text-xs text-slate-400 font-mono">
-          <Activity className="h-3.5 w-3.5 text-slate-400" />
-          <span>PIPELINE STATUS — UNAVAILABLE</span>
+        {/* WebSocket Live Status */}
+        <div
+          className={`hidden sm:inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-mono ${
+            wsStatus === 'CONNECTED'
+              ? 'border-emerald-800/50 bg-emerald-950/30 text-emerald-300'
+              : wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
+              ? 'border-amber-800/50 bg-amber-950/30 text-amber-300'
+              : 'border-slate-700/50 bg-slate-800/30 text-slate-400'
+          }`}
+        >
+          {wsStatus === 'CONNECTED' ? (
+            <>
+              <Radio className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+              <span>WS STREAM — LIVE</span>
+            </>
+          ) : wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING' ? (
+            <>
+              <Activity className="h-3.5 w-3.5 text-amber-400 animate-spin" />
+              <span>WS STREAM — {wsStatus}</span>
+            </>
+          ) : (
+            <>
+              <Activity className="h-3.5 w-3.5 text-slate-400" />
+              <span>WS STREAM — DISCONNECTED</span>
+            </>
+          )}
         </div>
 
         {/* Live Clock */}

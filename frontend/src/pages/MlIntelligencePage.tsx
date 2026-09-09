@@ -17,7 +17,9 @@ import type {
   PaginatedResponse,
   ThreatAlert,
   AlertQueryParams,
+  MlPrediction,
 } from '../types';
+import { CANONICAL_THREAT_FILTER_OPTIONS } from '../constants/threats';
 import { PageHeader } from '../components/layout/PageHeader';
 import { MetricCard } from '../components/common/MetricCard';
 import { ThreatClassBadge } from '../components/common/ThreatClassBadge';
@@ -35,6 +37,7 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
   const [dataState, setDataState] = useState<DataState>('loading');
   const [metrics, setMetrics] = useState<OverviewMetrics | null>(null);
   const [alertsResponse, setAlertsResponse] = useState<PaginatedResponse<ThreatAlert> | null>(null);
+  const [predictionsMap, setPredictionsMap] = useState<Record<string, MlPrediction>>({});
   const [selectedAlert, setSelectedAlert] = useState<ThreatAlert | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -67,6 +70,32 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
 
       setMetrics(overviewData);
       setAlertsResponse(alertsData);
+
+      // Fetch actual backend predictions to inspect calibration status
+      const uniqueFlowIds = Array.from(
+        new Set(alertsData.data.map((a) => a.flow_id).filter((id): id is string => Boolean(id)))
+      );
+      if (uniqueFlowIds.length > 0) {
+        const predEntries = await Promise.all(
+          uniqueFlowIds.map(async (fId) => {
+            try {
+              const preds = await dataService.getMlPredictionsByFlowId(fId);
+              return [fId, preds[0] || null] as const;
+            } catch {
+              return [fId, null] as const;
+            }
+          })
+        );
+        const newPredMap: Record<string, MlPrediction> = {};
+        for (const [fId, pred] of predEntries) {
+          if (pred) {
+            newPredMap[fId] = pred;
+          }
+        }
+        setPredictionsMap(newPredMap);
+      } else {
+        setPredictionsMap({});
+      }
 
       if (alertsData.data.length === 0 && overviewData.total_alerts === 0) {
         setDataState('empty');
@@ -221,13 +250,11 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
                     }
                     className="w-full rounded border border-slate-700 bg-slate-950/80 py-1.5 px-2.5 font-mono text-xs text-slate-200 focus-ring"
                   >
-                    <option value="ALL">All Threat Classes</option>
-                    <option value="Volumetric / Protocol DDoS">Volumetric / Protocol DDoS</option>
-                    <option value="Botnet C2 Beaconing">Botnet C2 Beaconing</option>
-                    <option value="DGA / DNS Tunneling">DGA / DNS Tunneling</option>
-                    <option value="Malware Inside Encrypted Sessions">Malware Inside Encrypted Sessions</option>
-                    <option value="Reconnaissance / Port Scanning">Reconnaissance / Port Scanning</option>
-                    <option value="Data Exfiltration">Data Exfiltration</option>
+                    {CANONICAL_THREAT_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -296,7 +323,18 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
                             {alert.model_version || 'N/A'}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <StatusPill status="CALIBRATED" size="sm" />
+                            {(() => {
+                              const pred = alert.flow_id ? predictionsMap[alert.flow_id] : null;
+                              if (pred?.calibrated === true) {
+                                return <StatusPill status="CALIBRATED" size="sm" />;
+                              }
+                              return (
+                                <StatusPill
+                                  status="UNCALIBRATED · RF VOTING"
+                                  size="sm"
+                                />
+                              );
+                            })()}
                           </td>
                           <td className="py-2.5 px-3 text-right whitespace-nowrap">
                             <button

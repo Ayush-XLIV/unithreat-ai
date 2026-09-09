@@ -21,7 +21,10 @@ export type StatusType =
   | 'DISCONNECTED'
   | 'RECONNECTING'
   | 'LIVE'
-  | 'REPLAY';
+  | 'REPLAY'
+  | 'CALIBRATED'
+  | 'UNCALIBRATED'
+  | 'UNCALIBRATED · RF VOTING';
 
 export interface StatusPillProps {
   status: StatusType | string | null | undefined;
@@ -131,6 +134,28 @@ export const StatusPill: FC<StatusPillProps> = ({
         >
           <PlayCircle className={`${iconSizes} text-cyan-400 shrink-0`} aria-hidden="true" />
           <span>REPLAY</span>
+        </span>
+      );
+
+    case 'CALIBRATED':
+      return (
+        <span
+          className={`inline-flex items-center rounded border font-semibold border-emerald-500/40 bg-emerald-950/30 text-emerald-400 select-none ${sizeClasses} ${className}`}
+        >
+          <CheckCircle2 className={`${iconSizes} text-emerald-400 shrink-0`} aria-hidden="true" />
+          <span>CALIBRATED</span>
+        </span>
+      );
+
+    case 'UNCALIBRATED':
+    case 'UNCALIBRATED · RF VOTING':
+      return (
+        <span
+          className={`inline-flex items-center rounded border font-semibold border-amber-500/40 bg-amber-950/30 text-amber-400 select-none ${sizeClasses} ${className}`}
+          title="Random Forest voting proportions; Platt scaling/isotonic calibration not applied"
+        >
+          <AlertTriangle className={`${iconSizes} text-amber-400 shrink-0`} aria-hidden="true" />
+          <span>UNCALIBRATED · RF VOTING</span>
         </span>
       );
 

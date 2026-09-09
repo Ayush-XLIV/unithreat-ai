@@ -28,19 +28,15 @@ import { DataStateWrapper, type DataState } from '../components/common/DataState
 import { PaginationControls } from '../components/common/PaginationControls';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
 
+import {
+  SIH_THREAT_CATEGORIES_CONFIG,
+  CANONICAL_THREAT_FILTER_OPTIONS,
+  getThreatCategoryCount,
+} from '../constants/threats';
+
 export interface DetectionAnalyticsPageProps {
   dataService: DataService;
 }
-
-/** SIH 6 Core Threat Categories */
-const SIH_THREAT_CATEGORIES = [
-  'Volumetric / Protocol DDoS',
-  'Botnet C2 Beaconing',
-  'DGA / DNS Tunneling',
-  'Malware Inside Encrypted Sessions',
-  'Reconnaissance / Port Scanning',
-  'Data Exfiltration',
-] as const;
 
 export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataService }) => {
   const [dataState, setDataState] = useState<DataState>('loading');
@@ -186,15 +182,19 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {SIH_THREAT_CATEGORIES.map((category) => {
-                  const count = metrics.threat_counts_by_class[category] || 0;
-                  const isSelected = threatClassFilter === category;
+                {SIH_THREAT_CATEGORIES_CONFIG.map((category) => {
+                  const count = getThreatCategoryCount(
+                    metrics.threat_counts_by_class,
+                    category.backendKeys,
+                    category.legacyLabel
+                  );
+                  const isSelected = threatClassFilter === category.primaryKey;
 
                   return (
                     <button
-                      key={category}
+                      key={category.id}
                       type="button"
-                      onClick={() => handleCategoryClick(category)}
+                      onClick={() => handleCategoryClick(category.primaryKey)}
                       aria-pressed={isSelected}
                       className={`text-left transition-all rounded-lg border p-4 space-y-3 focus-ring ${
                         isSelected
@@ -203,7 +203,7 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <ThreatClassBadge threatClass={category} size="sm" />
+                        <ThreatClassBadge threatClass={category.label} size="sm" />
                         <span className="font-mono text-lg font-bold text-slate-100">
                           {count}
                         </span>
@@ -272,10 +272,9 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                     }
                     className="w-full rounded border border-slate-700 bg-slate-950/80 py-1.5 px-2.5 font-mono text-xs text-slate-200 focus-ring"
                   >
-                    <option value="ALL">All Threat Categories</option>
-                    {SIH_THREAT_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
+                    {CANONICAL_THREAT_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
                       </option>
                     ))}
                   </select>

@@ -12,6 +12,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import type { DataService } from '../services/DataService';
+import { webSocketService } from '../services/WebSocketService';
 import type {
   OverviewMetrics,
   PipelineHealthStatus,
@@ -62,6 +63,43 @@ export const OverviewPage: FC<OverviewPageProps> = ({
   useEffect(() => {
     fetchOverviewData();
   }, [fetchOverviewData]);
+
+  // Listen for real-time WebSocket alerts to update metrics and recent alerts feed
+  useEffect(() => {
+    const unsubscribe = webSocketService.subscribe((newAlert: ThreatAlert) => {
+      // Update recent alerts list
+      setRecentAlerts((prev) => {
+        if (!prev) return prev;
+        if (prev.data.some((a) => a.flow_id === newAlert.flow_id)) return prev;
+        return {
+          ...prev,
+          data: [newAlert, ...prev.data].slice(0, 5),
+          total: prev.total + 1,
+        };
+      });
+
+      // Update overview metrics
+      setMetrics((prev) => {
+        if (!prev) return prev;
+        const sevKey = `${newAlert.severity.toLowerCase()}_alerts` as keyof OverviewMetrics;
+        const prevSevCount = (prev[sevKey] as number) || 0;
+        const currentClassCounts = { ...prev.threat_counts_by_class };
+        currentClassCounts[newAlert.threat_class] =
+          (currentClassCounts[newAlert.threat_class] || 0) + 1;
+
+        return {
+          ...prev,
+          total_alerts: prev.total_alerts + 1,
+          [sevKey]: prevSevCount + 1,
+          threat_counts_by_class: currentClassCounts,
+        };
+      });
+
+      setDataState((prev) => (prev === 'empty' ? 'ready' : prev));
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleInspectAlert = (alert: ThreatAlert) => {
     setSelectedAlert(alert);
