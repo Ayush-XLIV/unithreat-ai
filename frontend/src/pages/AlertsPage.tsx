@@ -17,6 +17,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import type { DataService } from '../services/DataService';
+import { webSocketService } from '../services/WebSocketService';
 import type {
   ThreatAlert,
   SeverityLevel,
@@ -31,18 +32,11 @@ import { DataStateWrapper, type DataState } from '../components/common/DataState
 import { PaginationControls } from '../components/common/PaginationControls';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
 
+import { CANONICAL_THREAT_FILTER_OPTIONS } from '../constants/threats';
+
 export interface AlertsPageProps {
   dataService: DataService;
 }
-
-const SIH_THREAT_CLASSES = [
-  'Volumetric / Protocol DDoS',
-  'Botnet C2 Beaconing',
-  'DGA / DNS Tunneling',
-  'Malware Inside Encrypted Sessions',
-  'Reconnaissance / Port Scanning',
-  'Data Exfiltration',
-];
 
 export const AlertsPage: FC<AlertsPageProps> = ({
   dataService,
@@ -118,6 +112,64 @@ export const AlertsPage: FC<AlertsPageProps> = ({
   useEffect(() => {
     fetchAlerts();
   }, [fetchAlerts]);
+
+  // Listen for real-time WebSocket alerts to update feed without page refresh
+  useEffect(() => {
+    const unsubscribe = webSocketService.subscribe((newAlert: ThreatAlert) => {
+      setAlertsResponse((prev) => {
+        if (!prev) return prev;
+
+        // Verify filter compatibility
+        if (severityFilter !== 'ALL' && newAlert.severity !== severityFilter) {
+          return prev;
+        }
+        if (threatClassFilter !== 'ALL' && newAlert.threat_class !== threatClassFilter) {
+          return prev;
+        }
+        if (minConfidence !== '') {
+          const parsedConf = parseFloat(minConfidence);
+          if (!Number.isNaN(parsedConf) && newAlert.confidence < parsedConf) {
+            return prev;
+          }
+        }
+        if (searchIpInput.trim()) {
+          const q = searchIpInput.trim().toLowerCase();
+          const match =
+            (newAlert.source_ip && newAlert.source_ip.toLowerCase().includes(q)) ||
+            (newAlert.destination_ip && newAlert.destination_ip.toLowerCase().includes(q));
+          if (!match) return prev;
+        }
+        if (flowIdInput.trim() && newAlert.flow_id !== flowIdInput.trim()) {
+          return prev;
+        }
+
+        // Avoid duplicate alert
+        if (prev.data.some((a) => a.flow_id === newAlert.flow_id)) {
+          return prev;
+        }
+
+        // Prepend to visible page if currently on page 1
+        const updatedData = page === 1 ? [newAlert, ...prev.data].slice(0, limit) : prev.data;
+        return {
+          ...prev,
+          data: updatedData,
+          total: prev.total + 1,
+        };
+      });
+
+      setDataState((prev) => (prev === 'empty' ? 'ready' : prev));
+    });
+
+    return unsubscribe;
+  }, [
+    severityFilter,
+    threatClassFilter,
+    minConfidence,
+    searchIpInput,
+    flowIdInput,
+    page,
+    limit,
+  ]);
 
   const handleFilterChange = (setter: (val: any) => void, val: any) => {
     setter(val);
@@ -428,10 +480,9 @@ export const AlertsPage: FC<AlertsPageProps> = ({
               onChange={(e) => handleFilterChange(setThreatClassFilter, e.target.value)}
               className="w-full rounded-lg border border-[#D4D4D4] bg-[#FFFFFF] px-2.5 py-1.5 text-[#0A0A0A] focus-ring font-sans truncate"
             >
-              <option value="ALL">All Threat Classes</option>
-              {SIH_THREAT_CLASSES.map((tc) => (
-                <option key={tc} value={tc}>
-                  {tc}
+              {CANONICAL_THREAT_FILTER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
                 </option>
               ))}
             </select>
