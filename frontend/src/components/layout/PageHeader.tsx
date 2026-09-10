@@ -12,13 +12,13 @@ export const PageHeader: FC<PageHeaderProps> = ({
   actions,
 }) => {
   return (
-    <div className="flex flex-col gap-2 pb-4 mb-6 border-b border-[#1b2433] md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-2 pb-4 mb-6 border-b border-[#E5E5E5] md:flex-row md:items-center md:justify-between">
       <div>
-        <h1 className="text-xl font-extrabold tracking-tight text-slate-100 font-sans">
+        <h1 className="text-2xl sm:text-[32px] font-bold tracking-tight text-[#0A0A0A] font-sans leading-tight">
           {title}
         </h1>
         {description && (
-          <p className="text-xs text-slate-400 font-sans mt-1 max-w-3xl leading-relaxed">
+          <p className="text-sm sm:text-[15px] text-[#525252] font-sans mt-1.5 max-w-3xl leading-relaxed">
             {description}
           </p>
         )}
@@ -27,4 +27,3 @@ export const PageHeader: FC<PageHeaderProps> = ({
     </div>
   );
 };
-

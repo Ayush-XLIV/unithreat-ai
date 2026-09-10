@@ -33,14 +33,14 @@ export const PaginationControls: FC<PaginationControlsProps> = ({
 
   return (
     <div
-      className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-3.5 py-2.5 border-t border-[#1b2433] bg-[#0c1017] text-xs text-slate-300 font-sans ${className}`}
+      className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-3.5 py-2.5 border-t border-[#E5E5E5] bg-[#FFFFFF] text-xs text-[#525252] font-sans ${className}`}
     >
       {/* Items Range Summary */}
-      <div className="flex items-center gap-2 font-mono text-slate-400 text-[11px]">
+      <div className="flex items-center gap-2 font-mono text-slate-500 text-[11px]">
         <span>
-          Showing <strong className="text-slate-100">{startItem}</strong> –{' '}
-          <strong className="text-slate-100">{endItem}</strong> of{' '}
-          <strong className="text-cyan-400">{total}</strong> records
+          Showing <strong className="text-[#0A0A0A]">{startItem}</strong> –{' '}
+          <strong className="text-[#0A0A0A]">{endItem}</strong> of{' '}
+          <strong className="text-[#2563EB]">{total}</strong> records
         </span>
       </div>
 
@@ -49,7 +49,7 @@ export const PaginationControls: FC<PaginationControlsProps> = ({
         {/* Page Limit Selector */}
         {onLimitChange && (
           <div className="flex items-center gap-1.5 font-mono text-[11px]">
-            <label htmlFor="pagination-limit-select" className="text-slate-400">
+            <label htmlFor="pagination-limit-select" className="text-slate-500">
               Rows:
             </label>
             <select
@@ -57,7 +57,7 @@ export const PaginationControls: FC<PaginationControlsProps> = ({
               value={limit}
               onChange={(e) => onLimitChange(Number(e.target.value))}
               disabled={disabled}
-              className="rounded-md border border-[#1b2433] bg-[#121824] px-2 py-1 text-slate-200 focus-ring font-mono text-xs cursor-pointer hover:border-[#263347] transition-colors"
+              className="rounded-md border border-[#D4D4D4] bg-[#FFFFFF] px-2 py-1 text-[#0A0A0A] focus-ring font-mono text-xs cursor-pointer hover:border-slate-400 transition-colors"
               aria-label="Select rows per page"
             >
               {pageSizeOptions.map((opt) => (
@@ -77,16 +77,16 @@ export const PaginationControls: FC<PaginationControlsProps> = ({
             disabled={!canGoPrevious}
             className={`inline-flex items-center justify-center rounded-md border p-1.5 transition-colors focus-ring ${
               canGoPrevious
-                ? 'border-[#1b2433] bg-[#121824] text-slate-200 hover:bg-slate-800 hover:border-slate-700'
-                : 'border-[#1b2433]/50 bg-slate-900/30 text-slate-600 cursor-not-allowed'
+                ? 'border-[#E5E5E5] bg-[#FFFFFF] text-[#0A0A0A] hover:bg-[#F5F5F5] hover:border-slate-300'
+                : 'border-[#E5E5E5]/60 bg-slate-50 text-slate-400 cursor-not-allowed'
             }`}
             aria-label="Go to previous page"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
 
-          <span className="px-2 font-mono text-xs text-slate-300">
-            Page <strong className="text-slate-100">{page}</strong> / {maxPage}
+          <span className="px-2 font-mono text-xs text-[#525252]">
+            Page <strong className="text-[#0A0A0A]">{page}</strong> / {maxPage}
           </span>
 
           <button
@@ -95,8 +95,8 @@ export const PaginationControls: FC<PaginationControlsProps> = ({
             disabled={!canGoNext}
             className={`inline-flex items-center justify-center rounded-md border p-1.5 transition-colors focus-ring ${
               canGoNext
-                ? 'border-[#1b2433] bg-[#121824] text-slate-200 hover:bg-slate-800 hover:border-slate-700'
-                : 'border-[#1b2433]/50 bg-slate-900/30 text-slate-600 cursor-not-allowed'
+                ? 'border-[#E5E5E5] bg-[#FFFFFF] text-[#0A0A0A] hover:bg-[#F5F5F5] hover:border-slate-300'
+                : 'border-[#E5E5E5]/60 bg-slate-50 text-slate-400 cursor-not-allowed'
             }`}
             aria-label="Go to next page"
           >
@@ -107,4 +107,3 @@ export const PaginationControls: FC<PaginationControlsProps> = ({
     </div>
   );
 };
-

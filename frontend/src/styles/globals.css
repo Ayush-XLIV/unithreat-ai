@@ -1,55 +1,60 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 @layer base {
   :root {
-    /* Color Palette - Black-First SOC Operations Console */
-    --bg-dark-soc: #030507;
-    --panel-bg: #080c11;
-    --panel-subsurface: #0a0f14;
-    --panel-border: #151d28;
-    --panel-border-subtle: #121923;
-    --panel-border-active: #1a2330;
+    /* Color Palette - Clean Minimal SaaS Theme */
+    --bg-dark-soc: #F8FAFC;
+    --panel-bg: #FFFFFF;
+    --panel-subsurface: #FAFAFA;
+    --panel-border: #E5E5E5;
+    --panel-border-subtle: #F0F0F0;
+    --panel-border-active: #D4D4D4;
 
     /* Elevated Data Surfaces */
-    --panel-elevated: #0d131a;
-    --panel-elevated-hover: #111820;
+    --panel-elevated: #FFFFFF;
+    --panel-elevated-hover: #F5F5F5;
 
-    /* Brand Accents */
-    --accent-cyan: #06b6d4;
-    --accent-teal: #0d9488;
-    --accent-emerald: #10b981;
+    /* Brand Accents - Restrained Blue */
+    --accent-cyan: #2563EB;
+    --accent-teal: #1D4ED8;
+    --accent-emerald: #16A34A;
 
     /* Semantic Security Severity Tokens */
-    --severity-critical: #f43f5e;
-    --severity-critical-bg: rgba(244, 63, 94, 0.12);
-    --severity-critical-border: rgba(244, 63, 94, 0.35);
+    --severity-critical: #DC2626;
+    --severity-critical-bg: #FEF2F2;
+    --severity-critical-border: #FCA5A5;
 
-    --severity-high: #f97316;
-    --severity-high-bg: rgba(249, 115, 22, 0.12);
-    --severity-high-border: rgba(249, 115, 22, 0.35);
+    --severity-high: #EA580C;
+    --severity-high-bg: #FFF7ED;
+    --severity-high-border: #FDBA74;
 
-    --severity-medium: #f59e0b;
-    --severity-medium-bg: rgba(245, 158, 11, 0.12);
-    --severity-medium-border: rgba(245, 158, 11, 0.35);
+    --severity-medium: #D97706;
+    --severity-medium-bg: #FEF3C7;
+    --severity-medium-border: #FCD34D;
 
-    --severity-low: #64748b;
-    --severity-low-bg: rgba(100, 116, 139, 0.12);
-    --severity-low-border: rgba(100, 116, 139, 0.35);
+    --severity-low: #64748B;
+    --severity-low-bg: #F1F5F9;
+    --severity-low-border: #CBD5E1;
 
     /* Operational Status Tokens */
-    --status-healthy: #10b981;
-    --status-warning: #f59e0b;
-    --status-error: #ef4444;
-    --status-info: #06b6d4;
+    --status-healthy: #16A34A;
+    --status-warning: #D97706;
+    --status-error: #DC2626;
+    --status-info: #2563EB;
 
     /* Focus & Accessibility Tokens */
-    --focus-ring: #06b6d4;
+    --focus-ring: #2563EB;
   }
 
   body {
-    background-color: var(--bg-dark-soc);
-    color: #f8fafc;
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #F8FAFC;
+    color: #0A0A0A;
+    font-family: var(--font-sans);
     min-height: 100vh;
     margin: 0;
     -webkit-font-smoothing: antialiased;
@@ -57,24 +62,24 @@
   }
 
   code, pre, .font-mono {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: var(--font-mono);
   }
 }
 
-/* Custom SOC Dark Scrollbar */
+/* Custom Light Minimal Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #030507;
+  background: #F8FAFC;
 }
 ::-webkit-scrollbar-thumb {
-  background: #151d28;
+  background: #E5E5E5;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #1a2330;
+  background: #D4D4D4;
 }
 
 /* Common focus indicator helper class */
@@ -86,10 +91,16 @@
   outline-offset: 2px;
 }
 
-/* Subtle background SOC grid pattern */
+/* Subtle background grid pattern */
 .bg-soc-grid {
   background-size: 24px 24px;
   background-image: 
-    linear-gradient(to right, rgba(21, 29, 40, 0.15) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(21, 29, 40, 0.15) 1px, transparent 1px);
+    linear-gradient(to right, rgba(229, 229, 229, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(229, 229, 229, 0.5) 1px, transparent 1px);
+}
+
+/* Reference-inspired subtle dotted background grid */
+.bg-dotted-grid {
+  background-image: radial-gradient(#d4d4d4 1px, transparent 1px);
+  background-size: 20px 20px;
 }

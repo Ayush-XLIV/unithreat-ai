@@ -145,7 +145,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs transition-opacity overflow-hidden"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs transition-opacity overflow-hidden"
       onClick={onClose}
       aria-hidden="true"
     >
@@ -153,7 +153,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
       <div
         ref={drawerRef}
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-[840px] max-h-[88vh] flex flex-col rounded-xl border border-[#151d28] bg-[#080c11] text-slate-100 shadow-2xl overflow-hidden focus:outline-none ${
+        className={`relative w-full max-w-[840px] max-h-[88vh] flex flex-col rounded-xl border border-[#E5E5E5] bg-[#FFFFFF] text-[#0A0A0A] shadow-2xl overflow-hidden focus:outline-none ${
           prefersReducedMotion ? '' : 'transition-all duration-200 ease-out'
         }`}
         aria-labelledby="alert-drawer-title"
@@ -162,17 +162,17 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
         tabIndex={-1}
       >
         {/* Fixed Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#151d28] px-5 py-4 bg-[#0a0f14] shrink-0">
+        <div className="flex items-center justify-between border-b border-[#E5E5E5] px-5 py-4 bg-[#F8FAFC] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-950/80 text-rose-400 border border-rose-800/60 shadow-xs">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs">
               <ShieldAlert className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h2 id="alert-drawer-title" className="text-sm sm:text-base font-extrabold text-slate-100 uppercase tracking-wide font-sans">
+              <h2 id="alert-drawer-title" className="text-base sm:text-lg font-bold text-[#0A0A0A] font-sans tracking-tight">
                 Alert Detail Inspector
               </h2>
-              <p className="text-[11px] font-mono text-slate-400">
-                Flow: <span className="text-cyan-400 font-semibold">{alert.flow_id}</span>
+              <p className="text-[11px] font-mono text-slate-500">
+                Flow: <span className="text-[#2563EB] font-semibold">{alert.flow_id}</span>
               </p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-slate-400 hover:bg-[#0d131a] hover:text-slate-100 focus-ring transition-colors"
+            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#0A0A0A] focus-ring transition-colors"
             aria-label="Close alert detail inspector"
           >
             <X className="h-5 w-5" />
@@ -191,35 +191,35 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
         {/* Scrollable Investigation Content */}
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
           {/* Key Classification Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#151d28] bg-[#0a0f14] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-[#F8FAFC] p-4">
             <div className="flex flex-wrap items-center gap-2">
               <SeverityBadge severity={alert.severity} size="md" />
               <ThreatClassBadge threatClass={alert.threat_class} size="md" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-slate-400">Confidence:</span>
+              <span className="text-xs font-sans text-[#525252]">Confidence:</span>
               <ConfidenceGauge confidence={alert.confidence} size="md" />
             </div>
           </div>
 
           {/* Network Flow Metadata Grid */}
-          <div className="rounded-lg border border-[#151d28] bg-[#0a0f14] p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-[#121923] pb-2.5">
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                <Network className="h-3.5 w-3.5 text-cyan-400" />
+          <div className="rounded-xl border border-[#E5E5E5] bg-[#F8FAFC] p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-[#E5E5E5] pb-2.5">
+              <h3 className="text-xs font-bold text-[#0A0A0A] uppercase tracking-wider font-sans flex items-center gap-1.5">
+                <Network className="h-3.5 w-3.5 text-[#2563EB]" />
                 Network Flow Metadata
               </h3>
 
               <button
                 type="button"
                 onClick={() => handleCopyText(alert.flow_id, 'flow_id')}
-                className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 hover:text-cyan-300 focus-ring"
+                className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-500 hover:text-[#2563EB] focus-ring"
                 title="Copy Flow ID"
               >
                 {copiedField === 'flow_id' ? (
                   <>
-                    <Check className="h-3 w-3 text-emerald-400" />
-                    <span className="text-emerald-400">Copied!</span>
+                    <Check className="h-3 w-3 text-emerald-600" />
+                    <span className="text-emerald-600">Copied!</span>
                   </>
                 ) : (
                   <>
@@ -231,30 +231,30 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
-              <div className="rounded border border-[#151d28] bg-[#0d131a] p-2.5">
-                <span className="text-slate-400 block text-[10px] font-sans">Timestamp</span>
-                <span className="text-slate-200 font-semibold">{alert.timestamp}</span>
+              <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
+                <span className="text-slate-500 block text-[10px] font-sans">Timestamp</span>
+                <span className="text-[#0A0A0A] font-semibold">{alert.timestamp}</span>
               </div>
-              <div className="rounded border border-[#151d28] bg-[#0d131a] p-2.5">
-                <span className="text-slate-400 block text-[10px] font-sans">Flow ID</span>
-                <span className="text-cyan-400 font-bold break-all">{alert.flow_id}</span>
+              <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
+                <span className="text-slate-500 block text-[10px] font-sans">Flow ID</span>
+                <span className="text-[#2563EB] font-bold break-all">{alert.flow_id}</span>
               </div>
-              <div className="rounded border border-[#151d28] bg-[#0d131a] p-2.5">
-                <span className="text-slate-400 block text-[10px] font-sans">Protocol</span>
-                <span className="text-slate-200 font-semibold">{alert.protocol || 'N/A'}</span>
+              <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
+                <span className="text-slate-500 block text-[10px] font-sans">Protocol</span>
+                <span className="text-[#0A0A0A] font-semibold">{alert.protocol || 'N/A'}</span>
               </div>
-              <div className="rounded border border-[#151d28] bg-[#0d131a] p-2.5">
-                <span className="text-slate-400 block text-[10px] font-sans">Source IP</span>
-                <span className="text-slate-200 font-semibold">{alert.source_ip || 'N/A'}</span>
+              <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
+                <span className="text-slate-500 block text-[10px] font-sans">Source IP</span>
+                <span className="text-[#0A0A0A] font-semibold">{alert.source_ip || 'N/A'}</span>
               </div>
-              <div className="rounded border border-[#151d28] bg-[#0d131a] p-2.5">
-                <span className="text-slate-400 block text-[10px] font-sans">Destination IP</span>
-                <span className="text-slate-200 font-semibold">{alert.destination_ip || 'N/A'}</span>
+              <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
+                <span className="text-slate-500 block text-[10px] font-sans">Destination IP</span>
+                <span className="text-[#0A0A0A] font-semibold">{alert.destination_ip || 'N/A'}</span>
               </div>
-              <div className="rounded border border-[#151d28] bg-[#0d131a] p-2.5">
-                <span className="text-slate-400 block text-[10px] font-sans">Model Version</span>
-                <span className="text-cyan-300 flex items-center gap-1 font-semibold">
-                  <Cpu className="h-3 w-3 text-cyan-400" />
+              <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
+                <span className="text-slate-500 block text-[10px] font-sans">Model Version</span>
+                <span className="text-[#2563EB] flex items-center gap-1 font-semibold">
+                  <Cpu className="h-3 w-3 text-[#2563EB]" />
                   {alert.model_version || 'N/A'}
                 </span>
               </div>
@@ -263,12 +263,12 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
 
           {/* Backend Intelligence Explanation */}
           {alert.explanation && (
-            <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-4 space-y-1">
-              <h4 className="text-xs font-bold text-cyan-300 font-sans flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5 text-cyan-400" />
+            <div className="rounded-xl border border-blue-200 bg-[#EFF6FF] p-4 space-y-1">
+              <h4 className="text-xs font-bold text-[#2563EB] font-sans flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-[#2563EB]" />
                 Backend Intelligence Explanation
               </h4>
-              <p className="text-xs text-slate-300 font-sans leading-relaxed break-words">
+              <p className="text-xs text-[#525252] font-sans leading-relaxed break-words">
                 {alert.explanation}
               </p>
             </div>
@@ -276,32 +276,32 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
 
           {/* Evidence Signals List */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
-              <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
+            <h3 className="text-xs font-bold text-[#0A0A0A] uppercase tracking-wider font-sans flex items-center gap-1.5">
+              <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
               Evidence Signals ({alert.evidence.length})
             </h3>
 
             {alert.evidence.length === 0 ? (
-              <div className="rounded-md border border-[#151d28] p-3.5 text-xs text-slate-400 font-sans bg-[#0a0f14]">
+              <div className="rounded-xl border border-[#E5E5E5] p-3.5 text-xs text-slate-500 font-sans bg-[#F8FAFC]">
                 No evidence signals attached to this alert.
               </div>
             ) : (
               alert.evidence.map((sig, idx) => (
                 <div
                   key={`${sig.signal_name}-${idx}`}
-                  className="rounded-lg border border-[#151d28] bg-[#0a0f14] p-3.5 text-xs space-y-2.5"
+                  className="rounded-xl border border-[#E5E5E5] bg-[#F8FAFC] p-3.5 text-xs space-y-2.5"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-slate-200 break-all text-xs">
+                    <span className="font-mono font-bold text-[#0A0A0A] break-all text-xs">
                       {sig.signal_name}
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold border ${
                         sig.direction === 'supporting'
-                          ? 'border-amber-800/60 bg-amber-950/40 text-amber-300'
+                          ? 'border-amber-200 bg-amber-50 text-amber-700'
                           : sig.direction === 'contradicting'
-                          ? 'border-blue-800/60 bg-blue-950/40 text-blue-300'
-                          : 'border-slate-700 bg-slate-800 text-slate-300'
+                          ? 'border-blue-200 bg-blue-50 text-[#2563EB]'
+                          : 'border-slate-200 bg-slate-100 text-slate-700'
                       }`}
                     >
                       {sig.direction === 'supporting' && <CheckCircle className="h-3 w-3" />}
@@ -310,14 +310,14 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 bg-[#0d131a] p-2 rounded border border-[#151d28]">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-600 bg-[#FFFFFF] p-2 rounded-lg border border-[#E5E5E5]">
                     <div>
                       <span>Value: </span>
-                      <strong className="text-cyan-300 break-all">{sig.value}</strong>
+                      <strong className="text-[#2563EB] break-all">{sig.value}</strong>
                     </div>
                     <div>
                       <span>Reliability: </span>
-                      <strong className="text-emerald-400">
+                      <strong className="text-emerald-600">
                         {Math.round(sig.reliability * 100)}%
                       </strong>
                     </div>
@@ -325,11 +325,11 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
 
                   {Boolean(sig.supporting_features?.length) && (
                     <div className="pt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] text-slate-400 font-sans">Supporting Features:</span>
+                      <span className="text-[10px] text-slate-500 font-sans">Supporting Features:</span>
                       {sig.supporting_features?.map((feat) => (
                         <span
                           key={feat}
-                          className="rounded bg-[#0d131a] px-1.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-[#151d28] break-all font-semibold"
+                          className="rounded bg-[#FFFFFF] px-1.5 py-0.5 text-[10px] font-mono text-[#2563EB] border border-[#E5E5E5] break-all font-semibold"
                         >
                           {feat}
                         </span>
@@ -343,14 +343,14 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
         </div>
 
         {/* Fixed Modal Footer Navigation */}
-        <div className="border-t border-[#151d28] bg-[#0a0f14] p-4 shrink-0">
+        <div className="border-t border-[#E5E5E5] bg-[#F8FAFC] p-4 shrink-0">
           <Link
             to={`/alerts/flow/${alert.flow_id}`}
             onClick={onClose}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/50 bg-[#0d131a] px-4 py-2.5 text-xs font-bold text-cyan-300 hover:bg-cyan-950/50 hover:border-cyan-400 hover:text-white focus-ring transition-colors shadow-xs font-mono"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#2563EB] bg-[#2563EB] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1D4ED8] focus-ring transition-colors shadow-2xs font-mono"
           >
             <span>View Full Flow Investigation</span>
-            <ExternalLink className="h-4 w-4 text-cyan-400" />
+            <ExternalLink className="h-4 w-4 text-white" />
           </Link>
         </div>
       </div>

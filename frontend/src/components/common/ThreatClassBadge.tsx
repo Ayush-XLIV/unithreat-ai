@@ -17,8 +17,8 @@ export interface ThreatClassBadgeProps {
 
 function getThreatClassStyle(_threatClass: string): { borderBgText: string; iconColor: string } {
   return {
-    borderBgText: 'border-slate-800 bg-[#121824] text-slate-300',
-    iconColor: 'text-cyan-400',
+    borderBgText: 'border-slate-200 bg-slate-100 text-slate-800',
+    iconColor: 'text-[#2563EB]',
   };
 }
 
@@ -70,4 +70,3 @@ export const ThreatClassBadge: FC<ThreatClassBadgeProps> = ({
     </span>
   );
 };
-
