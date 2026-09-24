@@ -31,8 +31,11 @@ import type {
   PaginatedResponse,
   ThreatAlert,
   AlertQueryParams,
+  MlPrediction,
 } from '../types';
-import { SeverityBadge } from '../components/common/SeverityBadge';
+import { CANONICAL_THREAT_FILTER_OPTIONS } from '../constants/threats';
+import { PageHeader } from '../components/layout/PageHeader';
+import { MetricCard } from '../components/common/MetricCard';
 import { ThreatClassBadge } from '../components/common/ThreatClassBadge';
 import { ConfidenceGauge } from '../components/common/ConfidenceGauge';
 import { StatusPill } from '../components/common/StatusPill';
@@ -135,6 +138,7 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
   const [dataState, setDataState] = useState<DataState>('loading');
   const [metrics, setMetrics] = useState<OverviewMetrics | null>(null);
   const [alertsResponse, setAlertsResponse] = useState<PaginatedResponse<ThreatAlert> | null>(null);
+  const [predictionsMap, setPredictionsMap] = useState<Record<string, MlPrediction>>({});
   const [selectedAlert, setSelectedAlert] = useState<ThreatAlert | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -167,6 +171,32 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
 
       setMetrics(overviewData);
       setAlertsResponse(alertsData);
+
+      // Fetch actual backend predictions to inspect calibration status
+      const uniqueFlowIds = Array.from(
+        new Set(alertsData.data.map((a) => a.flow_id).filter((id): id is string => Boolean(id)))
+      );
+      if (uniqueFlowIds.length > 0) {
+        const predEntries = await Promise.all(
+          uniqueFlowIds.map(async (fId) => {
+            try {
+              const preds = await dataService.getMlPredictionsByFlowId(fId);
+              return [fId, preds[0] || null] as const;
+            } catch {
+              return [fId, null] as const;
+            }
+          })
+        );
+        const newPredMap: Record<string, MlPrediction> = {};
+        for (const [fId, pred] of predEntries) {
+          if (pred) {
+            newPredMap[fId] = pred;
+          }
+        }
+        setPredictionsMap(newPredMap);
+      } else {
+        setPredictionsMap({});
+      }
 
       if (alertsData.data.length === 0 && overviewData.total_alerts === 0) {
         setDataState('empty');
@@ -651,10 +681,9 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
                     }
                     className="w-full rounded-md border border-[#E5E5E5] bg-[#FFFFFF] py-1.5 px-2.5 font-mono text-xs text-[#0A0A0A] focus-ring"
                   >
-                    <option value="ALL">All Threat Classes</option>
-                    {SIH_THREAT_CATEGORIES.map((tc) => (
-                      <option key={tc} value={tc}>
-                        {tc}
+                    {CANONICAL_THREAT_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
                       </option>
                     ))}
                   </select>
@@ -735,7 +764,18 @@ export const MlIntelligencePage: FC<MlIntelligencePageProps> = ({ dataService })
                             {alert.model_version || 'N/A'}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            {renderCalibrationPill((alert as any).calibrated)}
+                            {(() => {
+                              const pred = alert.flow_id ? predictionsMap[alert.flow_id] : null;
+                              if (pred?.calibrated === true) {
+                                return <StatusPill status="CALIBRATED" size="sm" />;
+                              }
+                              return (
+                                <StatusPill
+                                  status="UNCALIBRATED · RF VOTING"
+                                  size="sm"
+                                />
+                              );
+                            })()}
                           </td>
                           <td className="py-2.5 px-3 text-right whitespace-nowrap">
                             <button

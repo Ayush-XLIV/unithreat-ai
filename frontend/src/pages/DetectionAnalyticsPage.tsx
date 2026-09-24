@@ -40,68 +40,15 @@ import { DataStateWrapper, type DataState } from '../components/common/DataState
 import { PaginationControls } from '../components/common/PaginationControls';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
 
+import {
+  SIH_THREAT_CATEGORIES_CONFIG,
+  CANONICAL_THREAT_FILTER_OPTIONS,
+  getThreatCategoryCount,
+} from '../constants/threats';
+
 export interface DetectionAnalyticsPageProps {
   dataService: DataService;
 }
-
-/** SIH 6 Core Threat Categories */
-const SIH_THREAT_CATEGORIES = [
-  'Volumetric / Protocol DDoS',
-  'Botnet C2 Beaconing',
-  'DGA / DNS Tunneling',
-  'Malware Inside Encrypted Sessions',
-  'Reconnaissance / Port Scanning',
-  'Data Exfiltration',
-] as const;
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.22 } },
-};
-
-// Concise threat category presentation labels without altering backend data
-function getShortThreatLabel(fullThreatClass: string): string {
-  const tc = (fullThreatClass || '').toLowerCase();
-  if (tc.includes('ddos') || tc.includes('volumetric')) return 'DDoS / Volumetric';
-  if (tc.includes('botnet') || tc.includes('beacon') || tc.includes('c2')) return 'Botnet C2';
-  if (tc.includes('dga') || tc.includes('dns')) return 'DGA / DNS Tunnel';
-  if (tc.includes('encrypted') || tc.includes('malware')) return 'Encrypted Malware';
-  if (tc.includes('recon') || tc.includes('scan')) return 'Recon / Port Scan';
-  if (tc.includes('exfiltration') || tc.includes('data')) return 'Data Exfiltration';
-  return fullThreatClass;
-}
-
-// Custom Tooltip displaying full authoritative threat class name and alert count
-const CustomThreatTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-3 shadow-md text-xs font-sans space-y-1.5 text-[#0A0A0A]">
-        <div className="flex items-center gap-2 border-b border-[#E5E5E5] pb-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
-          <span className="font-bold text-[#0A0A0A] font-mono text-[11px]">{data.name}</span>
-        </div>
-        <div className="text-[#525252] text-[11px]">
-          Category: <span className="font-semibold text-[#0A0A0A]">{data.fullName}</span>
-        </div>
-        <div className="text-[#2563EB] font-mono font-bold text-xs pt-0.5">
-          Detections: {data.count} {data.count === 1 ? 'alert' : 'alerts'}
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
 
 export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataService }) => {
   const [dataState, setDataState] = useState<DataState>('loading');
@@ -516,16 +463,20 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {SIH_THREAT_CATEGORIES.map((category) => {
-                  const count = metrics.threat_counts_by_class[category] || 0;
-                  const isSelected = threatClassFilter === category;
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {SIH_THREAT_CATEGORIES_CONFIG.map((category) => {
+                  const count = getThreatCategoryCount(
+                    metrics.threat_counts_by_class,
+                    category.backendKeys,
+                    category.legacyLabel
+                  );
+                  const isSelected = threatClassFilter === category.primaryKey;
 
                   return (
                     <button
-                      key={category}
+                      key={category.id}
                       type="button"
-                      onClick={() => handleCategoryClick(category)}
+                      onClick={() => handleCategoryClick(category.primaryKey)}
                       aria-pressed={isSelected}
                       className={`text-left transition-all rounded-xl border p-3.5 space-y-2.5 focus-ring ${
                         isSelected
@@ -534,8 +485,8 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <ThreatClassBadge threatClass={category} size="sm" />
-                        <span className="font-mono text-base font-bold text-[#0A0A0A]">
+                        <ThreatClassBadge threatClass={category.label} size="sm" />
+                        <span className="font-mono text-lg font-bold text-slate-100">
                           {count}
                         </span>
                       </div>
@@ -603,10 +554,9 @@ export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataSe
                     }
                     className="w-full rounded-lg border border-[#D4D4D4] bg-[#FFFFFF] py-1.5 px-2.5 font-mono text-xs text-[#0A0A0A] focus-ring"
                   >
-                    <option value="ALL">All Threat Categories</option>
-                    {SIH_THREAT_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
+                    {CANONICAL_THREAT_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
                       </option>
                     ))}
                   </select>

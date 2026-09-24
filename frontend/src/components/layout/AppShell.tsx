@@ -1,10 +1,23 @@
-import { useState, type FC } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { Outlet } from 'react-router-dom';
 import { TopHeader } from './TopHeader';
 import { Sidebar } from './Sidebar';
+import type { DataService } from '../../services/DataService';
+import { webSocketService } from '../../services/WebSocketService';
 
-export const AppShell: FC = () => {
+export interface AppShellProps {
+  dataService?: DataService;
+}
+
+export const AppShell: FC<AppShellProps> = ({ dataService }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    webSocketService.connect();
+    return () => {
+      webSocketService.disconnect();
+    };
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarOpen((prev) => !prev);
@@ -20,6 +33,7 @@ export const AppShell: FC = () => {
       <TopHeader
         onToggleSidebar={toggleSidebar}
         isSidebarOpen={isSidebarOpen}
+        dataService={dataService}
       />
 
       {/* Main Workspace Body */}
@@ -35,3 +49,4 @@ export const AppShell: FC = () => {
     </div>
   );
 };
+
