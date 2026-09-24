@@ -17,17 +17,25 @@ Exported
 """
 
 from unithreat.generator.traffic import (
+    ATTACK_TYPE_ALIASES,
     DEFAULT_START_TIME,
+    SUPPORTED_ATTACK_TYPES,
+    ConfigurableTrafficGenerator,
     TrafficGenerator,
     VALID_SCENARIOS,
     generate_flows,
+    main,
     write_flows_jsonl,
 )
 
 __all__ = [
+    "ATTACK_TYPE_ALIASES",
+    "ConfigurableTrafficGenerator",
     "DEFAULT_START_TIME",
+    "SUPPORTED_ATTACK_TYPES",
     "TrafficGenerator",
     "VALID_SCENARIOS",
     "generate_flows",
+    "main",
     "write_flows_jsonl",
 ]

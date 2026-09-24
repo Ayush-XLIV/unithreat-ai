@@ -20,10 +20,14 @@ with real networks.
 
 from __future__ import annotations
 
+import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 import random
+import sys
+import time
 from typing import Any, Iterator
 
 VALID_SCENARIOS = (
@@ -44,6 +48,37 @@ DEFAULT_START_TIME = datetime(2026, 9, 6, 12, 0, 0, tzinfo=timezone.utc)
 def _format_timestamp(dt: datetime) -> str:
     """Format datetime as ISO 8601 string conforming to date-time format."""
     return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+# Realistic destination IP and SNI pools for benign background traffic
+BENIGN_HTTPS_DESTINATIONS: tuple[tuple[str, str], ...] = (
+    ("142.250.190.46", "www.google.com"),
+    ("142.250.180.14", "fonts.googleapis.com"),
+    ("142.250.72.206", "mail.google.com"),
+    ("93.184.216.34", "example.com"),
+    ("93.184.216.119", "cdn.example.org"),
+    ("151.101.1.140", "reddit.map.fastly.net"),
+    ("151.101.65.140", "cdn.jsdelivr.net"),
+    ("151.101.129.140", "api.github.com"),
+    ("104.16.132.229", "cloudflare.com"),
+    ("104.16.133.229", "cdnjs.cloudflare.com"),
+    ("104.18.20.12", "discord.com"),
+    ("52.84.125.33", "aws.amazon.com"),
+    ("54.230.150.88", "d1.awsstatic.com"),
+    ("13.107.42.16", "login.microsoft.com"),
+    ("20.112.52.29", "portal.azure.com"),
+    ("140.82.121.4", "github.com"),
+    ("23.218.211.75", "a23-218-211-75.deploy.static.akamaitechnologies.com"),
+)
+
+BENIGN_HTTP_DESTINATIONS: tuple[tuple[str, str], ...] = (
+    ("93.184.216.34", "example.com"),
+    ("151.101.1.140", "http.badssl.com"),
+    ("185.199.108.153", "pages.github.com"),
+    ("185.199.109.153", "raw.githubusercontent.com"),
+    ("185.199.110.153", "desktop.github.com"),
+    ("151.101.193.67", "cnn.com"),
+)
 
 
 class TrafficGenerator:
@@ -92,7 +127,7 @@ class TrafficGenerator:
         src_port = self.rng.randint(1024, 65535)
 
         if flow_type == "https":
-            dst_ip = self.rng.choice(["142.250.190.46", "93.184.216.34", "151.101.1.140", "104.16.132.229"])
+            dst_ip, sni = self.rng.choice(BENIGN_HTTPS_DESTINATIONS)
             dst_port = 443
             protocol = "TCP"
             direction = "outbound"
@@ -102,12 +137,12 @@ class TrafficGenerator:
             tcp_flags = "ACK-PSH"
             tls: dict[str, Any] | None = {
                 "version": "TLS 1.3",
-                "sni": self.rng.choice(["api.github.com", "cdn.jsdelivr.net", "fonts.googleapis.com", "login.microsoft.com"]),
+                "sni": sni,
             }
             dns = None
 
         elif flow_type == "http":
-            dst_ip = self.rng.choice(["93.184.216.34", "151.101.1.140", "185.199.108.153"])
+            dst_ip, _ = self.rng.choice(BENIGN_HTTP_DESTINATIONS)
             dst_port = 80
             protocol = "TCP"
             direction = "outbound"
@@ -593,3 +628,549 @@ def write_flows_jsonl(
             print(json.dumps(flow))
             count += 1
     return count
+
+
+# ---------------------------------------------------------------------------
+# Configurable Traffic Generator & Pipeline Runner
+# ---------------------------------------------------------------------------
+
+SUPPORTED_ATTACK_TYPES: tuple[str, ...] = (
+    "mixed",
+    "ddos",
+    "c2",
+    "dga",
+    "dns_tunneling",
+    "reconnaissance",
+    "data_exfiltration",
+    "encrypted_anomaly",
+)
+
+ATTACK_TYPE_ALIASES: dict[str, str] = {
+    "mixed": "mixed",
+    "ddos": "ddos",
+    "c2": "c2_beacon",
+    "c2_beacon": "c2_beacon",
+    "dga": "dga",
+    "dns_tunneling": "dns_tunnel",
+    "dns_tunnel": "dns_tunnel",
+    "reconnaissance": "port_scan",
+    "port_scan": "port_scan",
+    "recon": "port_scan",
+    "data_exfiltration": "exfiltration",
+    "exfiltration": "exfiltration",
+    "encrypted_anomaly": "encrypted_anomaly",
+}
+
+# Cluster sizes tuned to satisfy windowed detection thresholds without artificial labels:
+# - port_scan: >= 8 scanned ports/hosts -> 12 flows
+# - ddos: >= 5 flows with high rate and multi-source -> 15 flows
+# - c2_beacon: >= 4 periodic connections -> 5 flows
+# - dns_tunnel, exfiltration, dga, encrypted_anomaly: 4-6 flows
+MIXED_ATTACK_BURST_SPECS: tuple[tuple[str, int], ...] = (
+    ("port_scan", 12),
+    ("ddos", 15),
+    ("c2_beacon", 5),
+    ("dns_tunnel", 6),
+    ("exfiltration", 4),
+    ("dga", 6),
+    ("encrypted_anomaly", 5),
+)
+
+SINGLE_ATTACK_BURST_SIZES: dict[str, int] = {
+    "ddos": 15,
+    "port_scan": 12,
+    "c2_beacon": 5,
+    "dns_tunnel": 6,
+    "exfiltration": 4,
+    "dga": 6,
+    "encrypted_anomaly": 5,
+}
+
+
+class ConfigurableTrafficGenerator:
+    """
+    Configurable synthetic traffic generator producing mixed or focused attack flows
+    interleaved with realistic benign background traffic for UniThreat AI pipeline evaluation.
+
+    Parameters
+    ----------
+    count : int
+        Total number of flow records to generate (must be > 0).
+    rate : float
+        Generation rate in flows per second (must be > 0).
+    attack_ratio : float
+        Percentage of flows exhibiting attack patterns (0.0 to 100.0).
+    attack_type : str
+        Attack pattern category: 'mixed', 'ddos', 'c2', 'dga', 'dns_tunneling',
+        'reconnaissance', 'data_exfiltration', or 'encrypted_anomaly'.
+    seed : int | None
+        Optional random seed for deterministic generation.
+    start_time : datetime | None
+        Optional baseline timestamp for flow generation.
+    """
+
+    def __init__(
+        self,
+        count: int = 1000,
+        rate: float = 10.0,
+        attack_ratio: float = 20.0,
+        attack_type: str = "mixed",
+        seed: int | None = None,
+        start_time: datetime | None = None,
+    ) -> None:
+        if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
+            raise ValueError(f"Count must be an integer greater than 0, got {count!r}.")
+        if isinstance(rate, bool) or not isinstance(rate, (int, float)) or rate <= 0:
+            raise ValueError(f"Rate must be a positive number greater than 0, got {rate!r}.")
+        if (
+            isinstance(attack_ratio, bool)
+            or not isinstance(attack_ratio, (int, float))
+            or not (0.0 <= float(attack_ratio) <= 100.0)
+        ):
+            raise ValueError(
+                f"Attack ratio must be between 0 and 100, got {attack_ratio!r}."
+            )
+
+        canonical_type = str(attack_type).lower().strip()
+        if canonical_type not in ATTACK_TYPE_ALIASES:
+            raise ValueError(
+                f"Invalid attack type '{attack_type}'. "
+                f"Supported choices: {list(SUPPORTED_ATTACK_TYPES)}"
+            )
+
+        self.count = count
+        self.rate = float(rate)
+        self.attack_ratio = float(attack_ratio)
+        self.raw_attack_type = attack_type
+        self.attack_type = canonical_type
+        self.internal_attack_type = ATTACK_TYPE_ALIASES[canonical_type]
+        self.seed = seed
+        self.rng = random.Random(seed)
+        self.start_time = start_time or DEFAULT_START_TIME
+        self.current_time = self.start_time
+
+        self.total_attack_flows = int(round(self.count * (self.attack_ratio / 100.0)))
+        self.total_benign_flows = self.count - self.total_attack_flows
+
+        # Underlying scenario generators
+        self._benign_gen = TrafficGenerator(
+            "benign", seed=self.rng.randint(0, 2**31 - 1), start_time=self.start_time
+        )
+        self._scenario_gens: dict[str, TrafficGenerator] = {
+            s: TrafficGenerator(
+                s, seed=self.rng.randint(0, 2**31 - 1), start_time=self.start_time
+            )
+            for s in (
+                "ddos",
+                "port_scan",
+                "c2_beacon",
+                "dns_tunnel",
+                "exfiltration",
+                "dga",
+                "encrypted_anomaly",
+            )
+        }
+        self._scenario_counters: dict[str, int] = {
+            k: 0 for k in ("benign",) + tuple(self._scenario_gens.keys())
+        }
+
+    def _plan_schedule(self) -> list[tuple[str, int]]:
+        """
+        Build an interleaved sequence of (scenario_name, batch_size) blocks
+        that satisfies exact counts while maintaining detection window cohesion.
+        """
+        if self.internal_attack_type == "mixed":
+            burst_specs = MIXED_ATTACK_BURST_SPECS
+        else:
+            b_size = SINGLE_ATTACK_BURST_SIZES.get(self.internal_attack_type, 10)
+            burst_specs = ((self.internal_attack_type, b_size),)
+
+        attack_bursts: list[tuple[str, int]] = []
+        rem_attack = self.total_attack_flows
+        spec_idx = 0
+        while rem_attack > 0:
+            stype, size = burst_specs[spec_idx % len(burst_specs)]
+            actual_size = min(size, rem_attack)
+            attack_bursts.append((stype, actual_size))
+            rem_attack -= actual_size
+            spec_idx += 1
+
+        schedule: list[tuple[str, int]] = []
+        num_bursts = len(attack_bursts)
+
+        if num_bursts == 0:
+            if self.total_benign_flows > 0:
+                schedule.append(("benign", self.total_benign_flows))
+            return schedule
+
+        if self.total_benign_flows == 0:
+            schedule.extend(attack_bursts)
+            return schedule
+
+        benign_per_burst = self.total_benign_flows // num_bursts
+        rem_benign = self.total_benign_flows
+
+        for burst in attack_bursts:
+            b_chunk = min(benign_per_burst, rem_benign)
+            if b_chunk > 0:
+                schedule.append(("benign", b_chunk))
+                rem_benign -= b_chunk
+            schedule.append(burst)
+
+        if rem_benign > 0:
+            schedule.append(("benign", rem_benign))
+
+        return schedule
+
+    def generate(self) -> Iterator[dict[str, Any]]:
+        """
+        Yield schema-compliant flow records for the configured parameters.
+        Flows strictly adhere to contracts/flow-schema.json.
+        """
+        schedule = self._plan_schedule()
+        global_idx = 0
+
+        for scenario, batch_size in schedule:
+            for _ in range(batch_size):
+                global_idx += 1
+                self._scenario_counters[scenario] += 1
+                local_idx = self._scenario_counters[scenario]
+
+                if scenario == "benign":
+                    self._benign_gen.current_time = self.current_time
+                    flow = self._benign_gen._generate_benign(local_idx)
+                    self.current_time = self._benign_gen.current_time
+                    flow["timestamp"] = _format_timestamp(self.current_time)
+                    flow["flow_id"] = f"benign-{global_idx:06d}"
+                else:
+                    gen = self._scenario_gens[scenario]
+                    gen.current_time = self.current_time
+                    handler = getattr(gen, f"_generate_{scenario}")
+                    flow = handler(local_idx)
+                    self.current_time = gen.current_time
+                    flow["timestamp"] = _format_timestamp(self.current_time)
+                    prefix = flow["flow_id"].split("-")[0]
+                    flow["flow_id"] = f"{prefix}-{global_idx:06d}"
+
+                yield flow
+
+    def stream_flows(self, pacing: bool = True) -> Iterator[dict[str, Any]]:
+        """
+        Yield flows from generate(), sleeping (1.0 / rate) between flows when pacing=True.
+        """
+        delay = 1.0 / self.rate
+        for flow in self.generate():
+            yield flow
+            if pacing and delay > 0:
+                time.sleep(delay)
+
+    def run_pipeline(
+        self,
+        pipeline: Any | None = None,
+        api_url: str | None = None,
+        pace: bool = False,
+        quiet: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Feed all generated flows into either a local IntegratedPipeline or a remote REST API.
+
+        Parameters
+        ----------
+        pipeline : IntegratedPipeline | None
+            Local in-process pipeline instance. If None and api_url is None, creates default pipeline.
+        api_url : str | None
+            Base URL for UniThreat AI backend (e.g. http://127.0.0.1:8000).
+        pace : bool
+            Whether to pace transmission in wall-clock time according to self.rate.
+        quiet : bool
+            Suppress console progress display.
+
+        Returns
+        -------
+        dict[str, Any]
+            Execution metrics including flow counts and alerts breakdown.
+        """
+        import time as _t
+
+        http_client = None
+        if api_url is not None:
+            import httpx
+
+            api_url = api_url.rstrip("/")
+            http_client = httpx.Client(timeout=10.0)
+        elif pipeline is None:
+            from unithreat.alerts.pipeline import IntegratedPipeline
+
+            pipeline = IntegratedPipeline.with_default_models()
+
+        alerts_collected: list[dict[str, Any]] = []
+        flow_delay = (1.0 / self.rate) if pace else 0.0
+
+        start_wall_time = _t.perf_counter()
+        first_timestamp: str | None = None
+        last_timestamp: str | None = None
+
+        processed_count = 0
+        benign_count = 0
+        attack_count = 0
+
+        for flow in self.generate():
+            processed_count += 1
+            if first_timestamp is None:
+                first_timestamp = flow["timestamp"]
+            last_timestamp = flow["timestamp"]
+
+            if flow["flow_id"].startswith("benign-"):
+                benign_count += 1
+            else:
+                attack_count += 1
+
+            if http_client is not None:
+                resp = http_client.post(f"{api_url}/ingest/flow", json=flow)
+                resp.raise_for_status()
+                data = resp.json()
+                new_alerts = data.get("alerts", [])
+                alerts_collected.extend(new_alerts)
+            elif pipeline is not None:
+                new_alerts = pipeline.process_flow(flow)
+                alerts_collected.extend(new_alerts)
+
+            if not quiet and (
+                processed_count % max(1, self.count // 20) == 0
+                or processed_count == self.count
+            ):
+                pct = (processed_count / self.count) * 100
+                sys.stderr.write(
+                    f"\r[UniThreat Traffic] Processed {processed_count}/{self.count} flows ({pct:.1f}%)..."
+                )
+                sys.stderr.flush()
+
+            if flow_delay > 0:
+                _t.sleep(flow_delay)
+
+        if not quiet:
+            sys.stderr.write("\n")
+            sys.stderr.flush()
+
+        elapsed_wall = max(_t.perf_counter() - start_wall_time, 0.0001)
+        throughput_fps = round(processed_count / elapsed_wall, 2)
+
+        sim_duration = 0.0
+        if first_timestamp and last_timestamp:
+            try:
+                t1 = datetime.fromisoformat(first_timestamp.replace("Z", "+00:00"))
+                t2 = datetime.fromisoformat(last_timestamp.replace("Z", "+00:00"))
+                sim_duration = round((t2 - t1).total_seconds(), 2)
+            except Exception:
+                pass
+
+        by_class = Counter(a.get("threat_class", "UNKNOWN") for a in alerts_collected)
+        by_sev = Counter(a.get("severity", "UNKNOWN") for a in alerts_collected)
+
+        if http_client is not None:
+            http_client.close()
+
+        return {
+            "total_flows": processed_count,
+            "benign_flows": benign_count,
+            "attack_flows": attack_count,
+            "total_alerts": len(alerts_collected),
+            "by_threat_class": dict(by_class),
+            "by_severity": dict(by_sev),
+            "simulated_duration_sec": sim_duration,
+            "elapsed_wall_sec": round(elapsed_wall, 3),
+            "throughput_fps": throughput_fps,
+            "alerts": alerts_collected,
+        }
+
+
+def print_pipeline_summary(
+    metrics: dict[str, Any],
+    config: ConfigurableTrafficGenerator,
+    target: str,
+) -> None:
+    """Print an analyst-facing SOC operations summary table of pipeline run."""
+    lines = [
+        "=" * 80,
+        "   UniThreat AI — Synthetic Passive Traffic Generator & Detection Report   ",
+        "=" * 80,
+        "CONFIGURATION:",
+        f"  Total Requested Flows: {config.count}",
+        f"  Simulated Rate:        {config.rate:.1f} flows/sec",
+        f"  Attack Ratio:          {config.attack_ratio:.1f}% ({config.total_benign_flows} benign, {config.total_attack_flows} attack)",
+        f"  Attack Pattern:        {config.attack_type} ({config.internal_attack_type})",
+        f"  Target Destination:    {target}",
+        "",
+        "FLOW GENERATION STATISTICS:",
+        f"  Total Flows Generated: {metrics['total_flows']}",
+        f"  Benign Flows:          {metrics['benign_flows']} ({metrics['benign_flows'] / max(1, metrics['total_flows']) * 100:.1f}%)",
+        f"  Attack Flows:          {metrics['attack_flows']} ({metrics['attack_flows'] / max(1, metrics['total_flows']) * 100:.1f}%)",
+        f"  Simulated Duration:    {metrics['simulated_duration_sec']:.2f}s",
+        f"  Wall-Clock Time:       {metrics['elapsed_wall_sec']:.3f}s ({metrics['throughput_fps']:.1f} flows/sec)",
+        "",
+        "DETECTION PIPELINE RESULTS:",
+        f"  Total Alerts Emitted:  {metrics['total_alerts']}",
+    ]
+
+    if metrics["by_threat_class"]:
+        lines.append("  Alerts by Threat Class:")
+        for tc, cnt in sorted(metrics["by_threat_class"].items()):
+            lines.append(f"    - {tc:<22}: {cnt}")
+    else:
+        lines.append("  Alerts by Threat Class: None (0 alerts)")
+
+    if metrics["by_severity"]:
+        lines.append("  Alerts by Severity:")
+        for sev, cnt in sorted(metrics["by_severity"].items()):
+            lines.append(f"    - {sev:<10}: {cnt}")
+
+    lines.append("=" * 80)
+    print("\n".join(lines))
+
+
+def parse_args(args: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments for configurable traffic generator and pipeline replay."""
+    parser = argparse.ArgumentParser(
+        prog="python -m unithreat.generator",
+        description="UniThreat AI — Synthetic Passive Traffic Generator & Pipeline Replay Runner.",
+    )
+    parser.add_argument(
+        "--count",
+        type=int,
+        default=1000,
+        help="Total number of flow records to generate (default: 1000). Must be > 0.",
+    )
+    parser.add_argument(
+        "--rate",
+        type=float,
+        default=10.0,
+        help="Target generation rate in flows per second (default: 10.0). Must be > 0.",
+    )
+    parser.add_argument(
+        "--attack-ratio",
+        type=float,
+        default=20.0,
+        help="Percentage of flows exhibiting attack patterns, 0.0 to 100.0 (default: 20.0).",
+    )
+    parser.add_argument(
+        "--attack-type",
+        type=str,
+        default="mixed",
+        help=(
+            f"Attack pattern type. Choices: {', '.join(SUPPORTED_ATTACK_TYPES)} "
+            "(aliases: c2_beacon, dns_tunnel, port_scan, recon, exfiltration)."
+        ),
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output file path to save flows as JSONL (or '-' for stdout).",
+    )
+    parser.add_argument(
+        "--api-url",
+        type=str,
+        default=None,
+        help="Target UniThreat REST API base URL (e.g. http://127.0.0.1:8000) for live ingest.",
+    )
+    parser.add_argument(
+        "--pipeline",
+        action="store_true",
+        default=False,
+        help="Run generated flows through in-process IntegratedPipeline.",
+    )
+    parser.add_argument(
+        "--pace",
+        action="store_true",
+        default=False,
+        help="Pace transmission in wall-clock time according to --rate (sleep 1/rate).",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for deterministic flow generation.",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Suppress interactive progress output.",
+    )
+
+    parsed = parser.parse_args(args)
+
+    if parsed.count <= 0:
+        parser.error("--count must be greater than 0.")
+    if parsed.rate <= 0:
+        parser.error("--rate must be greater than 0.")
+    if not (0.0 <= parsed.attack_ratio <= 100.0):
+        parser.error("--attack-ratio must be between 0 and 100.")
+
+    canonical_attack = parsed.attack_type.lower().strip()
+    if canonical_attack not in ATTACK_TYPE_ALIASES:
+        parser.error(
+            f"Invalid --attack-type '{parsed.attack_type}'. "
+            f"Supported choices: {', '.join(SUPPORTED_ATTACK_TYPES)}"
+        )
+
+    return parsed
+
+
+def main(args: list[str] | None = None) -> int:
+    """Main CLI entrypoint for configurable traffic generator."""
+    try:
+        parsed = parse_args(args)
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else 1
+
+    generator = ConfigurableTrafficGenerator(
+        count=parsed.count,
+        rate=parsed.rate,
+        attack_ratio=parsed.attack_ratio,
+        attack_type=parsed.attack_type,
+        seed=parsed.seed,
+    )
+
+    # 1. Output to stdout
+    if parsed.output == "-":
+        for flow in generator.generate():
+            print(json.dumps(flow))
+            if parsed.pace:
+                time.sleep(1.0 / generator.rate)
+        return 0
+
+    # 2. Output to JSONL file
+    if parsed.output and parsed.output != "-":
+        out_path = Path(parsed.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        written = write_flows_jsonl(generator.generate(), output_path=out_path)
+        if not parsed.quiet:
+            sys.stderr.write(
+                f"Successfully generated {written} flows to {parsed.output}\n"
+            )
+        if not parsed.pipeline and not parsed.api_url:
+            return 0
+
+    # 3. Pipeline / API execution
+    # Default action if output is omitted or --pipeline is specified
+    target_desc = (
+        f"Remote API at {parsed.api_url}"
+        if parsed.api_url
+        else "In-Process IntegratedPipeline (Realtime Detection & Alerting)"
+    )
+
+    metrics = generator.run_pipeline(
+        api_url=parsed.api_url,
+        pace=parsed.pace or (parsed.api_url is not None),
+        quiet=parsed.quiet,
+    )
+
+    if not parsed.quiet:
+        print_pipeline_summary(metrics, generator, target_desc)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
