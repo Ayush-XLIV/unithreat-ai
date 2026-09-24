@@ -20,12 +20,11 @@ export interface AppRoutesProps {
 export const AppRoutes: FC<AppRoutesProps> = ({ dataService = defaultDataService }) => {
   return (
     <Routes>
-      <Route path="/" element={<AppShell dataService={dataService} />}>
-        {/* Redirect root path to /overview */}
-        <Route index element={<Navigate to="/overview" replace />} />
+      {/* Root Path: Hero / Landing Page (No AppShell/Sidebar) */}
+      <Route path="/" element={<HeroPage />} />
 
       {/* Operational Console Routes (Wrapped in AppShell with Sidebar & Header) */}
-      <Route element={<AppShell />}>
+      <Route element={<AppShell dataService={dataService} />}>
         {/* 7 Primary Navigation Views */}
         <Route path="overview" element={<OverviewPage dataService={dataService} />} />
         <Route path="alerts" element={<AlertsPage dataService={dataService} />} />

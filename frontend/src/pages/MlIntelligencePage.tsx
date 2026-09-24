@@ -34,8 +34,7 @@ import type {
   MlPrediction,
 } from '../types';
 import { CANONICAL_THREAT_FILTER_OPTIONS } from '../constants/threats';
-import { PageHeader } from '../components/layout/PageHeader';
-import { MetricCard } from '../components/common/MetricCard';
+import { SeverityBadge } from '../components/common/SeverityBadge';
 import { ThreatClassBadge } from '../components/common/ThreatClassBadge';
 import { ConfidenceGauge } from '../components/common/ConfidenceGauge';
 import { StatusPill } from '../components/common/StatusPill';
@@ -94,20 +93,6 @@ function getShortThreatLabel(fullThreatClass: string): string {
   return fullThreatClass;
 }
 
-// Render calibration status pill based strictly on backend field
-function renderCalibrationPill(calibrated?: boolean | null) {
-  if (calibrated === true) {
-    return <StatusPill status="CALIBRATED" size="sm" />;
-  }
-  if (calibrated === false) {
-    return <StatusPill status="NOT CALIBRATED" size="sm" />;
-  }
-  return (
-    <span className="font-mono text-[10px] text-slate-500 bg-[#F8FAFC] border border-[#E5E5E5] px-2 py-0.5 rounded-md">
-      CALIBRATION UNAVAILABLE
-    </span>
-  );
-}
 
 // Custom Tooltip popover for ML threat prediction distribution
 const CustomThreatTooltip = ({ active, payload }: any) => {

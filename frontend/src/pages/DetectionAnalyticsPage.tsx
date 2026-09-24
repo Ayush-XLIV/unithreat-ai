@@ -50,6 +50,61 @@ export interface DetectionAnalyticsPageProps {
   dataService: DataService;
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.06,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.22 } },
+};
+
+// Concise threat category presentation labels without altering backend data
+function getShortThreatLabel(fullThreatClass: string): string {
+  const tc = (fullThreatClass || '').toLowerCase();
+  if (tc.includes('ddos') || tc.includes('volumetric')) return 'DDoS / Volumetric';
+  if (tc.includes('botnet') || tc.includes('beacon') || tc.includes('c2')) return 'Botnet C2';
+  if (tc.includes('dga') || tc.includes('dns')) return 'DGA / DNS Tunnel';
+  if (tc.includes('encrypted') || tc.includes('malware')) return 'Encrypted Malware';
+  if (tc.includes('recon') || tc.includes('scan')) return 'Recon / Port Scan';
+  if (tc.includes('exfiltration') || tc.includes('data')) return 'Data Exfiltration';
+  return fullThreatClass;
+}
+
+// Custom Tooltip displaying full authoritative threat class name and alert count
+const CustomThreatTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: { name: string; fullName: string; count: number } }>;
+}) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-3 shadow-md text-xs font-sans space-y-1.5 text-[#0A0A0A]">
+        <div className="flex items-center gap-2 border-b border-[#E5E5E5] pb-1.5">
+          <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+          <span className="font-bold text-[#0A0A0A] font-mono text-[11px]">{data.name}</span>
+        </div>
+        <div className="text-[#525252] text-[11px]">
+          Category: <span className="font-semibold text-[#0A0A0A]">{data.fullName}</span>
+        </div>
+        <div className="text-[#2563EB] font-mono font-bold text-xs pt-0.5">
+          Detections: {data.count} {data.count === 1 ? 'alert' : 'alerts'}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const DetectionAnalyticsPage: FC<DetectionAnalyticsPageProps> = ({ dataService }) => {
   const [dataState, setDataState] = useState<DataState>('loading');
   const [metrics, setMetrics] = useState<OverviewMetrics | null>(null);
