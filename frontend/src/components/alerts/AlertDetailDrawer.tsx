@@ -16,6 +16,7 @@ import type { ThreatAlert } from '../../types/alert';
 import { SeverityBadge } from '../common/SeverityBadge';
 import { ThreatClassBadge } from '../common/ThreatClassBadge';
 import { ConfidenceGauge } from '../common/ConfidenceGauge';
+import { formatIST } from '../../utils/time';
 
 export interface AlertDetailDrawerProps {
   alert: ThreatAlert | null;
@@ -233,7 +234,7 @@ export const AlertDetailDrawer: FC<AlertDetailDrawerProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
               <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
                 <span className="text-slate-500 block text-[10px] font-sans">Timestamp</span>
-                <span className="text-[#0A0A0A] font-semibold">{alert.timestamp}</span>
+                <span className="text-[#0A0A0A] font-semibold">{formatIST(alert.timestamp)}</span>
               </div>
               <div className="rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] p-2.5">
                 <span className="text-slate-500 block text-[10px] font-sans">Flow ID</span>

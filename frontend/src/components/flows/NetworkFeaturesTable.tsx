@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import { Layers } from 'lucide-react';
 import type { NetworkFeatureRecord } from '../../types/feature';
+import { formatIST } from '../../utils/time';
 
 export interface NetworkFeaturesTableProps {
   features: NetworkFeatureRecord[];
@@ -39,7 +40,7 @@ export const NetworkFeaturesTable: FC<NetworkFeaturesTableProps> = ({ features }
           >
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5E5E5] pb-2 text-xs font-mono">
               <span className="text-[#525252]">
-                Timestamp: <strong className="text-[#0A0A0A]">{record.timestamp}</strong>
+                Timestamp: <strong className="text-[#0A0A0A]">{formatIST(record.timestamp)}</strong>
               </span>
               <div className="flex items-center gap-3 text-slate-500 text-[11px]">
                 {record.entity_id && (

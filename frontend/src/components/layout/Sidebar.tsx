@@ -129,7 +129,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen = false, onClose }) => {
                 </div>
                 <div className="flex flex-col leading-none">
                   <span className="font-extrabold tracking-wider text-[#0A0A0A] text-xs uppercase font-sans">
-                    UniThreat<span className="text-[#2563EB] ml-0.5">AI</span>
+                    NETRA<span className="text-[#2563EB] ml-0.5">AI</span>
                   </span>
                   <span className="text-[10px] text-[#737373] tracking-wider font-sans font-semibold">
                     SOC CONSOLE

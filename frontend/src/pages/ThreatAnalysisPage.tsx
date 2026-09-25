@@ -26,6 +26,7 @@ import { ConfidenceGauge } from '../components/common/ConfidenceGauge';
 import { DataStateWrapper, type DataState } from '../components/common/DataStateWrapper';
 import { PaginationControls } from '../components/common/PaginationControls';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
+import { formatIST } from '../utils/time';
 
 import { CANONICAL_THREAT_FILTER_OPTIONS } from '../constants/threats';
 
@@ -346,7 +347,7 @@ export const ThreatAnalysisPage: FC<ThreatAnalysisPageProps> = ({ dataService })
                           className="hover:bg-[#F5F5F5] transition-colors"
                         >
                           <td className="py-2.5 px-3 font-mono text-[#0A0A0A] whitespace-nowrap">
-                            {alert.timestamp}
+                            {formatIST(alert.timestamp)}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             <SeverityBadge severity={alert.severity} size="sm" />

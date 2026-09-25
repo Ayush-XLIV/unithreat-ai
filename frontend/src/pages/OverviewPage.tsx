@@ -38,6 +38,7 @@ import { ThreatClassBadge } from '../components/common/ThreatClassBadge';
 import { ConfidenceGauge } from '../components/common/ConfidenceGauge';
 import { StatusPill } from '../components/common/StatusPill';
 import { DataStateWrapper, type DataState } from '../components/common/DataStateWrapper';
+import { formatIST } from '../utils/time';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
 
 export interface OverviewPageProps {
@@ -521,7 +522,7 @@ export const OverviewPage: FC<OverviewPageProps> = ({ dataService }) => {
                           className="hover:bg-[#F5F5F5] transition-colors"
                         >
                           <td className="py-2.5 px-3 font-mono text-[#0A0A0A] whitespace-nowrap">
-                            {alert.timestamp}
+                            {formatIST(alert.timestamp)}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             <SeverityBadge severity={alert.severity} size="sm" />
@@ -613,7 +614,7 @@ export const OverviewPage: FC<OverviewPageProps> = ({ dataService }) => {
                       Last Sensor Sync
                     </span>
                     <span className="text-[#0A0A0A] text-[11px] font-bold mt-0.5 block truncate">
-                      {health.last_updated || 'N/A'}
+                      {health.last_updated ? formatIST(health.last_updated) : 'N/A'}
                     </span>
                   </div>
                 </div>

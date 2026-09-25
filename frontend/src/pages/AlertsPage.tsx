@@ -31,6 +31,7 @@ import { ConfidenceGauge } from '../components/common/ConfidenceGauge';
 import { DataStateWrapper, type DataState } from '../components/common/DataStateWrapper';
 import { PaginationControls } from '../components/common/PaginationControls';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
+import { formatIST } from '../utils/time';
 
 import { CANONICAL_THREAT_FILTER_OPTIONS } from '../constants/threats';
 
@@ -309,7 +310,7 @@ export const AlertsPage: FC<AlertsPageProps> = ({
                 <ThreatClassBadge threatClass={activeAlert.threat_class} size="md" />
                 <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-mono ml-auto">
                   <Clock className="h-3.5 w-3.5 text-slate-400" />
-                  {activeAlert.timestamp}
+                  {formatIST(activeAlert.timestamp)}
                 </span>
               </div>
 
@@ -587,7 +588,7 @@ export const AlertsPage: FC<AlertsPageProps> = ({
                           }`}
                         >
                           <td className="py-3 px-3.5 font-mono text-[#0A0A0A] whitespace-nowrap">
-                            {alert.timestamp}
+                            {formatIST(alert.timestamp)}
                           </td>
                           <td className="py-3 px-3.5 whitespace-nowrap">
                             <SeverityBadge severity={alert.severity} size="sm" />

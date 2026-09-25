@@ -18,6 +18,7 @@ import { ProtocolMetadataPanel } from '../components/flows/ProtocolMetadataPanel
 import { NetworkFeaturesTable } from '../components/flows/NetworkFeaturesTable';
 import { MlPredictionsPanel } from '../components/flows/MlPredictionsPanel';
 import { AlertDetailDrawer } from '../components/alerts/AlertDetailDrawer';
+import { formatIST } from '../utils/time';
 
 export interface FlowInvestigationPageProps {
   dataService: DataService;
@@ -145,7 +146,7 @@ export const FlowInvestigationPage: FC<FlowInvestigationPageProps> = ({ dataServ
                           className="hover:bg-[#F5F5F5] transition-colors"
                         >
                           <td className="py-2.5 px-3 font-mono text-[#0A0A0A] whitespace-nowrap">
-                            {alert.timestamp}
+                            {formatIST(alert.timestamp)}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             <SeverityBadge severity={alert.severity} size="sm" />

@@ -7,6 +7,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { StatusPill } from '../components/common/StatusPill';
 import { DataStateWrapper, type DataState } from '../components/common/DataStateWrapper';
 import { PaginationControls } from '../components/common/PaginationControls';
+import { formatIST } from '../utils/time';
 
 export interface FlowsPageProps {
   dataService: DataService;
@@ -207,7 +208,7 @@ export const FlowsPage: FC<FlowsPageProps> = ({ dataService }) => {
                           className="hover:bg-[#F5F5F5] transition-colors"
                         >
                           <td className="py-2.5 px-3 font-mono text-[#0A0A0A] whitespace-nowrap">
-                            {flow.timestamp}
+                            {formatIST(flow.timestamp)}
                           </td>
                           <td className="py-2.5 px-3 font-mono whitespace-nowrap font-semibold text-[#2563EB]">
                             <Link

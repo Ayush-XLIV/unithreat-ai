@@ -2,6 +2,7 @@ import { useState, useEffect, type FC } from 'react';
 import { Menu, X, ShieldAlert, Clock, Activity, Radio } from 'lucide-react';
 import type { DataService } from '../../services/DataService';
 import { webSocketService, type WebSocketConnectionStatus } from '../../services/WebSocketService';
+import { formatCurrentClockIST } from '../../utils/time';
 
 export interface TopHeaderProps {
   onToggleSidebar?: () => void;
@@ -19,8 +20,7 @@ export const TopHeader: FC<TopHeaderProps> = ({
 
   useEffect(() => {
     const updateTime = () => {
-      const now = new Date();
-      setTimeString(now.toUTCString().replace('GMT', 'UTC'));
+      setTimeString(formatCurrentClockIST());
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -58,7 +58,7 @@ export const TopHeader: FC<TopHeaderProps> = ({
           </div>
           <div className="flex flex-col leading-none">
             <span className="font-extrabold tracking-wider text-[#0A0A0A] text-sm uppercase font-sans">
-              UniThreat<span className="text-[#2563EB] ml-0.5">AI</span>
+              NETRA<span className="text-[#2563EB] ml-0.5">AI</span>
             </span>
             <span className="text-[10px] text-slate-500 tracking-wider font-mono font-semibold">
               SOC CONSOLE
@@ -88,7 +88,7 @@ export const TopHeader: FC<TopHeaderProps> = ({
         )}
       </div>
 
-      {/* Right section: Stream Status & UTC Clock */}
+      {/* Right section: Stream Status & IST Clock */}
       <div className="flex items-center gap-3">
         {/* WebSocket Live Status */}
         <div
@@ -121,7 +121,7 @@ export const TopHeader: FC<TopHeaderProps> = ({
         {/* Live Clock */}
         <div className="flex items-center gap-1.5 text-xs text-[#0A0A0A] font-mono bg-[#F8FAFC] border border-[#E5E5E5] px-2.5 py-1 rounded-md shadow-2xs">
           <Clock className="h-3.5 w-3.5 text-[#2563EB]" />
-          <span className="font-semibold text-[11px]">{timeString || 'UTC CLOCK'}</span>
+          <span className="font-semibold text-[11px]">{timeString || 'IST CLOCK'}</span>
         </div>
       </div>
     </header>

@@ -17,6 +17,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { MetricCard } from '../components/common/MetricCard';
 import { StatusPill } from '../components/common/StatusPill';
 import { DataStateWrapper, type DataState } from '../components/common/DataStateWrapper';
+import { formatIST } from '../utils/time';
 
 export interface SystemMonitoringPageProps {
   dataService: DataService;
@@ -187,7 +188,7 @@ export const SystemMonitoringPage: FC<SystemMonitoringPageProps> = ({ dataServic
                       Telemetry Last Updated
                     </span>
                     <span className="text-[#525252] text-[11px] font-mono">
-                      {pipelineHealth.last_updated ?? new Date().toISOString()}
+                      {formatIST(pipelineHealth.last_updated ?? new Date())}
                     </span>
                   </div>
                 </div>

@@ -2,6 +2,7 @@ import type { FC } from 'react';
 import { Network, Activity, Clock, Server } from 'lucide-react';
 import type { PassiveFlow } from '../../types/flow';
 import { StatusPill } from '../common/StatusPill';
+import { formatIST } from '../../utils/time';
 
 export interface FlowMetadataPanelProps {
   flow: PassiveFlow;
@@ -29,7 +30,7 @@ export const FlowMetadataPanel: FC<FlowMetadataPanelProps> = ({ flow }) => {
             Timestamp
           </span>
           <span className="text-[#0A0A0A] font-bold mt-0.5 block truncate">
-            {flow.timestamp}
+            {formatIST(flow.timestamp)}
           </span>
         </div>
 
